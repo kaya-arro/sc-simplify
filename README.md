@@ -53,11 +53,15 @@ sage: sc1.homology(subcomplex=sc2, enlarge=False)
 
 1. Intall `rust` or `rustup` through your distribution's package manager.
 
-2. Clone the repo with `gh repo clone kaya-arro/sc-simplify`  or `git clone https://github.com/kaya-arro/sc-simplify.git` or through your browser.
+2. Clone the repository.
 
-3. Optional but encouraged: Specify the target architecture in `.cargo/config.toml` appropriate for your system. You can view a list of supported architectures with the command `rustup target list`.
+3. Optional but strongly encouraged: Specify the target architecture in `.cargo/config.toml` appropriate for your system. You can view a list of supported architectures with the command `rustup target list`.
+   
+   - Note: `config.toml` has the `rustflags = ['-Ctarget-cpu=native']` flag enabled. This means that the binary you build may not work on machines other than the one on which you build it. This lack of portability comes with the advantage of shorter runtimes.
+   
+   - Because of the goal of the project is efficient calculation, you are encouraged to build the binary on each machine you will run it on.
 
-4. Execute `cargo build -r` in the root directory of the package.
+4. Execute `cargo build -r` in the root directory of the repository.
 
 5. Optional: Copy `sc-simplify.1.gz` into `/usr/share/man/man1/`.
 
