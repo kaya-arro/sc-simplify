@@ -42,7 +42,7 @@ By default, `sc-simplify` takes the Čech nerve of the input iteratively until n
 
 Next, the "pinch" algorithm is applied at most twice (configurable via the `--max-pinch-loops` flag). This algorithm is the central mathematical contribution of this package. Each edge is evaluated to determine if contracting it would change the homotopy type of the complex, and if not, it is contracted. For the sake of efficiency, a fast heuristic algorithm is used: this process does not generally yield a locally minimal simplicial complex, but it does yield a (potentially much) smaller complex very quickly.
 
-Software like `sage` accelerates homology computations by find a large contractible subcomplex and calculating relative homology with respect to this subcomplex. Since Rust is faster than Python, `sc-simplify` does this for you automatically by default so that you can use e.g.
+Software like `sage` accelerates homology computations by finding a large contractible subcomplex and calculating relative homology with respect to this subcomplex. Since Rust is faster than Python, `sc-simplify` does this for you automatically by default so that you can use e.g.
 
 ```python
 sage: sc1, sc2 = read_sc_pair("simplified-pair.sc")
@@ -70,6 +70,8 @@ I have just written this program and am still trying out a couple of performance
 Although the program is focused on efficient calculations, I also have plans to implement a more computationally expensive algorithm to produce minimal simplicial complexes.
 
 I may also add a progress bar, but that is a lower priority.
+
+It would also be nice to integrate homology calculations into the program directly, but at the moment, the only Rust crate I am aware of for calculating simplicial homology only supports mod 2 coefficients, which does not interest me. Perhaps implementing integral simplicial homology in Rust will be a longer-term project of time, but it will be a while before I have time for such a project.
 
 # License
 

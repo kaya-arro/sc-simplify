@@ -4,3 +4,4 @@ sc-simplify.1
 src/experimental.rs
 TODO
 Cargo.lock
+build.rs.bak
