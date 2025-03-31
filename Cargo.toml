@@ -1,0 +1,25 @@
+[package]
+name = "sc-simplify"
+version = "0.1.0"
+authors = ["Kaya Arro"]
+edition = "2021"
+description = "Takes a simplicial complex and returns a smaller simplicial complex of the same homotopy type"
+
+[dependencies]
+clap = { version = "4.5.34", features = ["cargo", "derive", "wrap_help"] }
+cute = "0.3.0"
+derive = "1.0.0"
+rustc-hash = "2.1.1"
+
+[build-dependencies]
+clap = { version = "4.5.34", features = ["cargo", "derive", "wrap_help"] }
+clap_mangen = "0.2.26"
+
+
+[profile.release]
+opt-level = 3 # Default 3
+strip = "symbols" # Default "none"
+overflow-checks = true # Default false
+lto = "fat" # Default false
+incremental = false # Default false
+codegen-units = 1 # Default 16

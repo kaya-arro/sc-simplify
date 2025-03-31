@@ -1,0 +1,5 @@
+target/
+build.rs
+sc-simplify.1
+src/experimental.rs
+TODO
