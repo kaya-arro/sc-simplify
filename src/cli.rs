@@ -11,7 +11,6 @@ use super::Parser;
 /// in which X has the homotopy type of the input and C is a large contractible subcomplex of X.
 /// The complexes X and C are delineated by a blank line.
 pub struct Cli {
-
     /// Check that the faces in the input are all maximal.
     ///
     /// Depending on other settings used, input including non-maximal faces may yield unexpected
@@ -83,5 +82,4 @@ pub struct Cli {
     /// gap> my_simplified_complex := SCLoadXML("my-simplified-complex.sc");
     #[arg(short, long, default_value_t = false)]
     pub xml: bool,
-
 }

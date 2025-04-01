@@ -1,10 +1,12 @@
-use std::ops::BitAnd;
 use std::default::Default;
 use std::io::stdin;
+use std::ops::BitAnd;
 
 use rustc_hash::FxBuildHasher;
-use rustc_hash::{FxHashSet as HashSet};
-fn the_hasher() -> FxBuildHasher { FxBuildHasher::default() }
+use rustc_hash::FxHashSet as HashSet;
+fn the_hasher() -> FxBuildHasher {
+    FxBuildHasher::default()
+}
 
 mod simplex;
 use simplex::Simplex;
@@ -27,11 +29,14 @@ fn read_input() -> SimplicialComplex {
     let mut first = true;
     while let Some(line) = lines.next() {
         let vertices = line
-        .expect("A complex should have at least one facet.")
-        .split(" ")
-        .filter(|v| !v.is_empty())
-        .map(|n| n.parse().expect("Vertices should be labeled by natural numbers less than 2^32."))
-        .collect::<HashSet<u32>>();
+            .expect("A complex should have at least one facet.")
+            .split(" ")
+            .filter(|v| !v.is_empty())
+            .map(|n| {
+                n.parse()
+                    .expect("Vertices should be labeled by natural numbers less than 2^32.")
+            })
+            .collect::<HashSet<u32>>();
         if !vertices.is_empty() || first {
             facets.push(Simplex(vertices));
         }
@@ -47,7 +52,8 @@ fn write_sc(sc: &SimplicialComplex, xml: bool) {
         let xml_postfix = "]]</SCFacetsEx>\n</SimplicialComplexV2>".to_string();
         let facet_strings = c![
             c![v.to_string(), for v in &f.0].join(","), for f in &sc.facets
-        ].join("],[");
+        ]
+        .join("],[");
         println!("{}", xml_prefix + &facet_strings + &xml_postfix);
     } else {
         for facet in &sc.facets {

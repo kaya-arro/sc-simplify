@@ -1,7 +1,7 @@
-use std::collections::BTreeSet;
 use rustc_hash::FxHashMap as HashMap;
+use std::collections::BTreeSet;
 
-use super::{BitAnd, Default, c, HashSet, the_hasher, simplex::Simplex};
+use super::{BitAnd, Default, HashSet, c, simplex::Simplex, the_hasher};
 
 fn len_sort(vec: &mut Vec<Simplex>) {
     vec.sort_by(|a, b| b.len().cmp(&a.len()));
@@ -9,11 +9,15 @@ fn len_sort(vec: &mut Vec<Simplex>) {
 
 #[derive(Debug, Default, Clone)]
 pub struct SimplicialComplex {
-    pub facets: Vec<Simplex>
+    pub facets: Vec<Simplex>,
 }
 
 impl From<&Simplex> for SimplicialComplex {
-    fn from(simplex: &Simplex) -> Self { Self{ facets: Vec::from([simplex.clone()]) } }
+    fn from(simplex: &Simplex) -> Self {
+        Self {
+            facets: Vec::from([simplex.clone()]),
+        }
+    }
 }
 
 impl BitAnd for &SimplicialComplex {
@@ -25,7 +29,6 @@ impl BitAnd for &SimplicialComplex {
 }
 
 impl SimplicialComplex {
-
     pub fn from_check(mut facets: Vec<Simplex>) -> Self {
         match facets.len() {
             0 => Self::default(),
@@ -44,12 +47,13 @@ impl SimplicialComplex {
         }
     }
 
-    fn first_len(&self) -> usize { return self.facets[0].len() }
+    fn first_len(&self) -> usize {
+        return self.facets[0].len();
+    }
 
     fn vertex_set(&self) -> HashSet<u32> {
-        let mut vertex_set: HashSet<u32> = HashSet::with_capacity_and_hasher(
-            self.facets.len() * self.first_len(), the_hasher()
-        );
+        let mut vertex_set: HashSet<u32> =
+            HashSet::with_capacity_and_hasher(self.facets.len() * self.first_len(), the_hasher());
         for facet in &self.facets {
             vertex_set.extend(&facet.0);
         }
@@ -63,9 +67,8 @@ impl SimplicialComplex {
             return HashSet::with_hasher(the_hasher());
         }
         let upper_bound = self.facets.len() * first_len * (first_len - 1);
-        let mut edge_set: HashSet<BTreeSet<u32>> = HashSet::with_capacity_and_hasher(
-            upper_bound, the_hasher()
-        );
+        let mut edge_set: HashSet<BTreeSet<u32>> =
+            HashSet::with_capacity_and_hasher(upper_bound, the_hasher());
 
         for facet in &self.facets {
             let tuple = c![*v, for v in &facet.0];
@@ -87,9 +90,8 @@ impl SimplicialComplex {
     }
 
     fn intersection_with_complex(&self, other: &Self) -> Self {
-        let mut int_faces: HashSet<BTreeSet<u32>> = HashSet::with_capacity_and_hasher(
-            self.facets.len() * other.facets.len(), the_hasher()
-        );
+        let mut int_faces: HashSet<BTreeSet<u32>> =
+            HashSet::with_capacity_and_hasher(self.facets.len() * other.facets.len(), the_hasher());
         for facet in &self.facets {
             for other_facet in &other.facets {
                 int_faces.insert((facet & other_facet).0.into_iter().collect());
@@ -117,11 +119,11 @@ impl SimplicialComplex {
             return;
         }
         let mut nerve = self.nerve();
-        while (return_base && (
-            (nerve.first_len() < self.first_len() || nerve.facets.len() < base_vertex_count)
-        )) || (!return_base && (
-            (nerve.first_len() > self.first_len() || nerve.facets.len() > base_vertex_count)
-        )) {
+        while (return_base
+            && (nerve.first_len() < self.first_len() || nerve.facets.len() < base_vertex_count))
+            || (!return_base
+                && (nerve.first_len() > self.first_len() || nerve.facets.len() > base_vertex_count))
+        {
             if return_base {
                 *self = nerve.nerve();
                 base_vertex_count = self.vertex_set().len();
@@ -213,9 +215,9 @@ impl SimplicialComplex {
     }
 
     pub fn pinch(&mut self) -> bool {
-
         let mut moved = HashSet::<u32>::with_capacity_and_hasher(
-            self.facets.len() * self.first_len(), the_hasher()
+            self.facets.len() * self.first_len(),
+            the_hasher(),
         );
         let mut pinched = false;
 
@@ -231,10 +233,9 @@ impl SimplicialComplex {
             let n_simp = Simplex::from(Vec::from([new]));
             let e_simp = Simplex::from(edge);
 
-            if let [ref o_link, ref n_link, ref mut e_link] = self.links(
-                &Vec::from([o_simp, n_simp, e_simp])
-            )[..] {
-
+            if let [ref o_link, ref n_link, ref mut e_link] =
+                self.links(&Vec::from([o_simp, n_simp, e_simp]))[..]
+            {
                 let intersection = o_link & n_link;
 
                 if e_link.is_deformation_retract(&intersection) {
@@ -258,7 +259,9 @@ impl SimplicialComplex {
     }
 
     fn first_facet_to_complex(&self) -> Self {
-        Self { facets: Vec::from([self.facets[0].clone()]) }
+        Self {
+            facets: Vec::from([self.facets[0].clone()]),
+        }
     }
 
     pub fn contractible_subcomplex(&self) -> Self {
@@ -272,7 +275,7 @@ impl SimplicialComplex {
         let mut contractible = self.first_facet_to_complex();
         let remainder_vec = contractible.enlarge_in_supercomplex(&self);
         let remainder = Self {
-            facets: remainder_vec.into_iter().map(|s| (*s).clone()).collect()
+            facets: remainder_vec.into_iter().map(|s| (*s).clone()).collect(),
         };
         let boundary = remainder.intersection_with_complex(&contractible);
 
@@ -281,9 +284,8 @@ impl SimplicialComplex {
 
     pub fn relabel_vertices(&mut self) {
         let vertex_set = self.vertex_set();
-        let mut vertex_dict: HashMap<u32, u32> = HashMap::with_capacity_and_hasher(
-            vertex_set.len(), the_hasher()
-        );
+        let mut vertex_dict: HashMap<u32, u32> =
+            HashMap::with_capacity_and_hasher(vertex_set.len(), the_hasher());
         let mut n = 0u32;
         for v in vertex_set.into_iter().collect::<Vec<u32>>() {
             vertex_dict.insert(v, n);
@@ -293,5 +295,4 @@ impl SimplicialComplex {
             facet.0 = facet.0.iter().map(|v| vertex_dict[v]).collect();
         }
     }
-
 }

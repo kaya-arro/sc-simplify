@@ -1,8 +1,7 @@
-use std::{fmt, cmp::Ordering};
+use std::{cmp::Ordering, fmt};
 
-use super::{BitAnd, Default, c, HashSet, the_hasher};
+use super::{BitAnd, Default, HashSet, c, the_hasher};
 use std::ops::{BitOr, Sub};
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Simplex(pub HashSet<u32>);
@@ -14,7 +13,9 @@ impl fmt::Display for Simplex {
 }
 
 impl Default for Simplex {
-    fn default() -> Self { Self(HashSet::with_hasher(the_hasher())) }
+    fn default() -> Self {
+        Self(HashSet::with_hasher(the_hasher()))
+    }
 }
 
 impl PartialOrd for Simplex {
@@ -34,37 +35,55 @@ impl PartialOrd for Simplex {
 impl BitAnd for &Simplex {
     type Output = Simplex;
 
-    fn bitand(self, rhs: &Simplex) -> Simplex { Simplex(&self.0 & &rhs.0) }
+    fn bitand(self, rhs: &Simplex) -> Simplex {
+        Simplex(&self.0 & &rhs.0)
+    }
 }
 
 impl BitOr for &Simplex {
     type Output = Simplex;
 
-    fn bitor(self, rhs: &Simplex) -> Simplex { Simplex(&self.0 | &rhs.0) }
+    fn bitor(self, rhs: &Simplex) -> Simplex {
+        Simplex(&self.0 | &rhs.0)
+    }
 }
 
 impl Sub for &Simplex {
     type Output = Simplex;
 
-    fn sub(self, rhs: &Simplex) -> Simplex { Simplex(&self.0 - &rhs.0) }
+    fn sub(self, rhs: &Simplex) -> Simplex {
+        Simplex(&self.0 - &rhs.0)
+    }
 }
 
-impl<T: IntoIterator<Item=u32>> From<T> for Simplex {
-    fn from(col: T) -> Self { Self(col.into_iter().collect()) }
+impl<T: IntoIterator<Item = u32>> From<T> for Simplex {
+    fn from(col: T) -> Self {
+        Self(col.into_iter().collect())
+    }
 }
 
 impl Simplex {
+    pub fn contains(&self, item: &u32) -> bool {
+        self.0.contains(item)
+    }
 
-    pub fn contains(&self, item: &u32) -> bool { self.0.contains(item) }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 
-    pub fn len(&self) -> usize { self.0.len() }
+    pub fn is_disjoint(&self, other: &Simplex) -> bool {
+        self.0.is_disjoint(&other.0)
+    }
 
-    pub fn is_disjoint(&self, other: &Simplex) -> bool { self.0.is_disjoint(&other.0) }
+    pub fn insert(&mut self, item: &u32) -> bool {
+        self.0.insert(*item)
+    }
 
-    pub fn insert(&mut self, item: &u32) -> bool { self.0.insert(*item) }
+    pub fn remove(&mut self, item: &u32) -> bool {
+        self.0.remove(item)
+    }
 
-    pub fn remove(&mut self, item: &u32) -> bool { self.0.remove(item) }
-
-    pub fn intersection(&self, rhs: &Self) -> Self { Self(&self.0 & &rhs.0) }
-
+    pub fn intersection(&self, rhs: &Self) -> Self {
+        Self(&self.0 & &rhs.0)
+    }
 }
