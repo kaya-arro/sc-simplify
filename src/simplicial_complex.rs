@@ -59,7 +59,10 @@ impl SimplicialComplex {
 
     fn edges(&self) -> HashSet<BTreeSet<u32>> {
         let first_len = self.first_len();
-        let upper_bound = (self.facets.len() * first_len * (first_len - 1)) as usize;
+        if first_len == 0 {
+            return HashSet::with_hasher(the_hasher());
+        }
+        let upper_bound = self.facets.len() * first_len * (first_len - 1);
         let mut edge_set: HashSet<BTreeSet<u32>> = HashSet::with_capacity_and_hasher(
             upper_bound, the_hasher()
         );

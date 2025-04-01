@@ -29,6 +29,7 @@ fn read_input() -> SimplicialComplex {
         let vertices = line
         .expect("A complex should have at least one facet.")
         .split(" ")
+        .filter(|n| n.len() > 0)
         .map(|n| n.parse().expect("Vertices should be labeled by natural numbers less than 2^32."))
         .collect::<HashSet<u32>>();
         facets.push(Simplex(vertices));
