@@ -1,4 +1,4 @@
-use super::Parser;
+use crate::Parser;
 
 #[derive(Parser)]
 #[command(version)]
@@ -40,7 +40,7 @@ pub struct Cli {
     /// efficiency and utility of the algorithm diminish quickly with each iteration, so large
     /// values for this setting are discouraged.
     #[arg(short = 'p', long, value_name = "MAX", default_value_t = 2)]
-    pub max_pinch_loops: u8,
+    pub max_pinch_loops: usize,
 
     /// Only print the simplified input.
     ///

@@ -1,13 +1,13 @@
 use rustc_hash::FxHashMap as HashMap;
 use std::collections::BTreeSet;
 
-use super::{BitAnd, Default, HashSet, c, simplex::Simplex, the_hasher};
+use crate::{BitAnd, Default, HashSet, c, simplex::Simplex, the_hasher};
 
 fn len_sort(vec: &mut Vec<Simplex>) {
     vec.sort_by(|a, b| b.len().cmp(&a.len()));
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct SimplicialComplex {
     pub facets: Vec<Simplex>,
 }

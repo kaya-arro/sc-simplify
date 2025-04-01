@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, fmt};
 
-use super::{BitAnd, Default, HashSet, c, the_hasher};
+use crate::{BitAnd, Default, HashSet, c, the_hasher};
 use std::ops::{BitOr, Sub};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
