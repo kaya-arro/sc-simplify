@@ -17,11 +17,8 @@ The program reads its input from `stdin`. Each line is a facet presented as a sp
 Examples:
 
 ```bash
-$ sc-simplify < my-complex.sc [OPTIONS ...] > simplified.sc
-```
-
-```bash
-$ sc-factory.sh | sc-simplify [OPTIONS ...] > simplified.sc
+$ sc-simplify < my-complex.sc [OPTIONS ... ] > simplified.sc
+$ sc-factory.sh | sc-simplify [OPTIONS ... ] > simplified.sc
 ```
 
 You can also enter `stdin` by hand, terminating the input with `^D` as usual.
@@ -30,15 +27,11 @@ By the default, the output has the same formatting as the input. Alternatively, 
 
 If you would like to use the program with `sage`, small scripts for importing and exporting simplicial complexes in `sc-simplify`'s format to and from `sage` are provided in the file `sage/sc_io.sage`.
 
-For furthere usage details, read the help text:
-
-```bash
-sc-simplify --help
-```
+For furthere usage details, read the help text: `sc-simplify --help`
 
 # Algorithm
 
-By default, `sc-simplify` takes the Čech nerve of the input iteratively until no more simplifications occur no more simplifications occur and the dimension of the complex is less than or equal to that of its nerve.
+By default, `sc-simplify` takes the Čech nerve of the input iteratively until no more simplifications occur and the dimension of the complex is less than or equal to that of its nerve.
 
 Next, the "pinch" algorithm is applied at most twice (configurable via the `--max-pinch-loops` flag). This algorithm is the central mathematical contribution of this package. Each edge is evaluated to determine if contracting it would change the homotopy type of the complex, and if not, it is contracted. For the sake of efficiency, a fast heuristic algorithm is used: this process does not generally yield a locally minimal simplicial complex, but it does yield a (potentially much) smaller complex very quickly.
 
@@ -53,39 +46,41 @@ sage: sc1.homology(subcomplex=sc2, enlarge=False)
 
 1. Intall `rust` or `rustup` through your distribution's package manager.
 
-2. Clone the repository.
+2. If necessay, update Rust to the latest edition (`1.85` at the time of writing) with `rust update`.
 
-3. Optional but strongly encouraged: Specify the target architecture in `.cargo/config.toml` appropriate for your system. You can view a list of supported architectures with the command `rustup target list`.
+3. Clone the repository.
+
+4. Optional but strongly encouraged: Specify the target architecture in `.cargo/config.toml` appropriate for your system. You can view a list of supported architectures with the command `rustup target list`.
    
-   - Note: `config.toml` has the `rustflags = ['-Ctarget-cpu=native']` flag enabled. This means that the binary you build may not work on machines other than the one on which you build it. This lack of portability comes with the advantage of shorter runtimes.
+   - Note: `config.toml` has `rustflags = ['-Ctarget-cpu=native']` enabled. This means that the binary you build may not work on machines other than the one on which you build it. This lack of portability comes with the advantage of shorter runtimes, but you can comment out this flag if you wish.
    
-   - Because of the goal of the project is efficient calculation, you are encouraged to build the binary on each machine you will run it on.
+   - Because the goal of the project is efficient computation, you are encouraged to build the binary on each machine you will run it on.
 
-4. Execute `cargo build -r` in the root directory of the repository.
+5. Execute `cargo build -r` in the root directory of the repository.
 
-5. Optional: Copy `sc-simplify.1.gz` into `/usr/share/man/man1/`.
+6. Optional: Copy or link `sc-simplify.1.gz` into `/usr/share/man/man1/` so that `man sc-simplify` brings up the manual.
 
-6. The binary can be found at `target/release/sc-simplify`. Copy it into your `PATH` (probably into `/usr/bin/`) or do whatever you want with it.
+7. The binary can be found at `target/release/sc-simplify`. Link to it from your `PATH` with `sudo ln -s $(pwd)/taret/release/sc-simplify /usr/bin/` or do whatever you want with it.
 
 # To do
 
-- Small performance tweaks
+- [ ] Small performance tweaks
 
-- Multithreading
+- [ ] Multithreading
 
-- A "pair mode" that enlarges a given subcomplex (and optionally "minifies" the pair by removing  shared facets)
+- [ ] A "pair mode" that enlarges a given subcomplex (and optionally "minifies" the pair by removing shared facets)
 
-- A slower but more thorough mode that does not return false negatives when internally testing contractibility
+- [ ] A slower but more thorough mode that does not return false negatives when internally testing contractibility
 
-- A much slower setting that tries to find a locally and ideally absolutely minimal version of a complex
+- [ ] A much slower setting that tries to find a locally and ideally absolutely minimal version of a complex
 
-- An even more careful mode that prints its progress while calculating a contractible subcomplex
+- [ ] An even more careful mode that prints its progress while calculating a contractible subcomplex
 
-- Inclusion of examples in the repository
+- [ ] Inclusion of examples in the repository
 
-- Maybe a mode that shows a status bar? This is not a high priority and would require changing the current interface.
+- [ ] Maybe a mode that shows a status bar? This is not a high priority and would require changing the current interface.
 
-- In the longer term, maybe implementing integral simplicial homology in Rust (I'm aware of a crate the implements mod 2 homology but not integral homology). It would be a while before I had time to do this.
+- [ ] In the longer term, maybe implementing integral simplicial homology in Rust (I'm aware of a crate the implements mod 2 homology but not integral homology). It would be a while before I had time to do this.
 
 # License
 
