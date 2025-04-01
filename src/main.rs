@@ -24,17 +24,18 @@ fn read_input() -> SimplicialComplex {
     let stdin = stdin();
     let mut lines = stdin.lock().lines();
     let mut facets: Vec<Simplex> = Vec::new();
-    let first = true;
+    let mut first = true;
     while let Some(line) = lines.next() {
         let vertices = line
         .expect("A complex should have at least one facet.")
         .split(" ")
-        .filter(|n| n.len() > 0)
+        .filter(|v| !v.is_empty())
         .map(|n| n.parse().expect("Vertices should be labeled by natural numbers less than 2^32."))
         .collect::<HashSet<u32>>();
-        if vertices.len() > 0 || first {
+        if !vertices.is_empty() || first {
             facets.push(Simplex(vertices));
         }
+        first = false;
     }
 
     SimplicialComplex { facets }
