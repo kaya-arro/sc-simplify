@@ -4,7 +4,7 @@ use super::{BitAnd, Default, c, HashSet, the_hasher};
 use std::ops::{BitOr, Sub};
 
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Simplex(pub HashSet<u32>);
 
 impl fmt::Display for Simplex {

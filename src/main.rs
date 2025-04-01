@@ -20,11 +20,11 @@ use cli::Cli;
 
 use std::io::BufRead;
 
-
 fn read_input() -> SimplicialComplex {
     let stdin = stdin();
     let mut lines = stdin.lock().lines();
     let mut facets: Vec<Simplex> = Vec::new();
+    let first = true;
     while let Some(line) = lines.next() {
         let vertices = line
         .expect("A complex should have at least one facet.")
@@ -32,13 +32,15 @@ fn read_input() -> SimplicialComplex {
         .filter(|n| n.len() > 0)
         .map(|n| n.parse().expect("Vertices should be labeled by natural numbers less than 2^32."))
         .collect::<HashSet<u32>>();
-        facets.push(Simplex(vertices));
+        if vertices.len() > 0 || first {
+            facets.push(Simplex(vertices));
+        }
     }
 
     SimplicialComplex { facets }
 }
 
-fn write_simplicial_complex(sc: &SimplicialComplex, xml: bool) {
+fn write_sc(sc: &SimplicialComplex, xml: bool) {
     if xml {
         let xml_prefix = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SimplicialComplexV2 type=\"SCSimplicialComplex\">\n	<SCFacetsEx type=\"SCArray\">[[".to_string();
         let xml_postfix = "]]</SCFacetsEx>\n</SimplicialComplexV2>".to_string();
@@ -70,23 +72,23 @@ fn main() {
     while n < cli.max_pinch_loops && sc.pinch() {
         n += 1;
         if cli.write_each_pinch {
-            write_simplicial_complex(&sc, xml);
+            write_sc(&sc, xml);
         }
     }
 
     sc.relabel_vertices();
 
     if cli.no_pair {
-        write_simplicial_complex(&sc, xml);
+        write_sc(&sc, xml);
     } else if cli.minimize_pair {
         let (remainder, boundary) = sc.minimal_pair();
-        write_simplicial_complex(&remainder, xml);
+        write_sc(&remainder, xml);
         print!("\n");
-        write_simplicial_complex(&boundary, xml);
+        write_sc(&boundary, xml);
     } else {
         let contractible = sc.contractible_subcomplex();
-        write_simplicial_complex(&sc, xml);
+        write_sc(&sc, xml);
         print!("\n");
-        write_simplicial_complex(&contractible, xml);
+        write_sc(&contractible, xml);
     }
 }

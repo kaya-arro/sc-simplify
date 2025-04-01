@@ -7,7 +7,7 @@ fn len_sort(vec: &mut Vec<Simplex>) {
     vec.sort_by(|a, b| b.len().cmp(&a.len()));
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct SimplicialComplex {
     pub facets: Vec<Simplex>
 }
