@@ -69,13 +69,23 @@ sage: sc1.homology(subcomplex=sc2, enlarge=False)
 
 # To do
 
-I have just written this program and am still trying out a couple of performance tweaks. I will probably also add some example files to the repo.
+- Small performance tweaks
 
-Although the program is focused on efficient calculations, I also have plans to implement a more computationally expensive algorithm to produce minimal simplicial complexes.
+- Multithreading
 
-I may also add a progress bar, but that is a lower priority.
+- A "pair mode" that enlarges a given subcomplex (and optionally "minifies" the pair by removing  shared facets)
 
-It would also be nice to integrate homology calculations into the program directly, but at the moment, the only Rust crate I am aware of for calculating simplicial homology only supports mod 2 coefficients, which does not interest me. Perhaps implementing integral simplicial homology in Rust will be a longer-term project of time, but it will be a while before I have time for such a project.
+- A slower but more thorough mode that does not return false negatives when internally testing contractibility
+
+- A much slower setting that tries to find a locally and ideally absolutely minimal version of a complex
+
+- An even more careful mode that prints its progress while calculating a contractible subcomplex
+
+- Inclusion of examples in the repository
+
+- Maybe a mode that shows a status bar? This is not a high priority and would require changing the current interface.
+
+- In the longer term, maybe implementing integral simplicial homology in Rust (I'm aware of a crate the implements mod 2 homology but not integral homology). It would be a while before I had time to do this.
 
 # License
 
