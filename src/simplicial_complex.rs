@@ -113,6 +113,9 @@ impl SimplicialComplex {
     pub fn reduce(&mut self) {
         let mut return_base = true;
         let mut base_vertex_count = self.vertex_set().len();
+        if base_vertex_count == 0 {
+            return;
+        }
         let mut nerve = self.nerve();
         while (return_base && (
             (nerve.first_len() < self.first_len() || nerve.facets.len() < base_vertex_count)
