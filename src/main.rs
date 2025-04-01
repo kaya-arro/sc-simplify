@@ -33,6 +33,7 @@ fn read_input() -> SimplicialComplex {
         .collect::<HashSet<u32>>();
         facets.push(Simplex(vertices));
     }
+
     SimplicialComplex { facets }
 }
 
