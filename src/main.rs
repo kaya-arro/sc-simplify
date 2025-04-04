@@ -9,7 +9,7 @@ fn the_hasher() -> FxBuildHasher {
 }
 
 mod simplex;
-use simplex::Simplex;
+use simplex::{Simplex, PrettySimplex};
 
 mod simplicial_complex;
 use simplicial_complex::SimplicialComplex;
@@ -56,8 +56,12 @@ fn write_sc(sc: &SimplicialComplex, xml: bool) {
         .join("],[");
         println!("{}", xml_prefix + &facet_strings + &xml_postfix);
     } else {
-        for facet in &sc.facets {
-            println!("{}", facet.to_string());
+        let mut facet_vec: Vec<PrettySimplex> =
+            sc.facets.iter().map(PrettySimplex::from).collect();
+        facet_vec.sort();
+        let d = (sc.vertex_set().len() - 1).to_string().len();
+        for f in facet_vec {
+            f.print(d);
         }
     }
 }
@@ -67,19 +71,27 @@ fn main() {
     let xml = cli.xml;
     let mut sc = read_input();
 
-    if cli.check_input {
-        sc = SimplicialComplex::from_check(sc.facets);
-    }
-
-    if !cli.skip_nerve {
+    if cli.skip_nerve {
+        if cli.check_input {
+            sc = SimplicialComplex::from_check(sc.facets);
+        } else {
+            sc.facets.select_nth_unstable_by_key(0, Simplex::len);
+        }
+    } else {
         sc.reduce();
     }
 
-    let mut n = 0;
-    while n < cli.max_pinch_loops && sc.pinch() {
-        n += 1;
-        if cli.write_each_pinch {
-            write_sc(&sc, xml);
+    let mut thorough: bool;
+    if sc.first_len() > 4 {
+        thorough = true;
+    } else {
+        thorough = false;
+    }
+
+    if !cli.skip_pinch {
+        sc.pinch(thorough);
+        if thorough && sc.first_len() < 5 {
+            thorough = false;
         }
     }
 
@@ -87,13 +99,8 @@ fn main() {
 
     if cli.no_pair {
         write_sc(&sc, xml);
-    } else if cli.minimize_pair {
-        let (remainder, boundary) = sc.minimal_pair();
-        write_sc(&remainder, xml);
-        print!("\n");
-        write_sc(&boundary, xml);
     } else {
-        let contractible = sc.contractible_subcomplex();
+        let contractible = sc.contractible_subcomplex(thorough);
         write_sc(&sc, xml);
         print!("\n");
         write_sc(&contractible, xml);

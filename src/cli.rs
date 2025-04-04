@@ -11,10 +11,11 @@ use crate::Parser;
 /// in which X has the homotopy type of the input and C is a large contractible subcomplex of X.
 /// The complexes X and C are delineated by a blank line.
 pub struct Cli {
-    /// Check that the faces in the input are all maximal.
+
+    /// Check that the faces in the input are maximal.
     ///
-    /// Depending on other settings used, input including non-maximal faces may yield unexpected
-    /// results unless this flag is enabled.
+    /// Depending on other settings used, input including non-maximal faces may cause unexpected
+    /// behavior.
     #[arg(short, long, default_value_t = false)]
     pub check_input: bool,
 
@@ -28,19 +29,15 @@ pub struct Cli {
     ///
     /// If you know that your input has no "redundant" vertices and that its dimension is less than
     /// the dimension of its nerve, you should skip this operation using this flag.
-    #[arg(short, long, default_value_t = false)]
+    #[arg(short = 'N', long, default_value_t = false)]
     pub skip_nerve: bool,
 
-    /// Limit the number of pinch loops. Set to 0 to skip pinching entirely.
+    /// Skip the "pinch" algorithm.
     ///
     /// The pinch algorithm identifies edges which can be contracted without altering the
     /// homotopy type and contracts them.
-    ///
-    /// The tool will never continue pinching once no edges can be contracted. Nevertheless, the
-    /// efficiency and utility of the algorithm diminish quickly with each iteration, so large
-    /// values for this setting are discouraged.
-    #[arg(short = 'p', long, value_name = "MAX", default_value_t = 2)]
-    pub max_pinch_loops: usize,
+    #[arg(short = 'P', long, default_value_t = false)]
+    pub skip_pinch: bool,
 
     /// Only print the simplified input.
     ///
@@ -49,37 +46,18 @@ pub struct Cli {
     /// If this flag is not enabled, the tool prints a complex and subcomplex, X, Y, whose pair
     /// homotopy type -- i.e. the homotopy type of the mapping cone of the inclusion of Y into X --
     /// agrees with the homotopy type of the input.
-    #[arg(short, long, default_value_t = false)]
+    // ///
+    // /// If this flag is used in conjunction with the `-e/--enlarge-subcomplex` flag, the program
+    // /// will print the mapping cone of the inclusion of the subcomplex (after applying the other
+    // /// transformations to the pair).
+    #[arg(short = 'p', long, default_value_t = false)]
     pub no_pair: bool,
-
-    /// Minimize the output pair by removing shared facets from both.
-    ///
-    /// Instead of printing a complex and a large contractible subcomplex, remove shared facets
-    /// from both and print the resulting pair.
-    ///
-    /// The pair homotopy type will agree with the homotopy type of the input, but the first member
-    /// of the pair will probably not have the same homotopy type as the input and the second
-    /// member will probably not be contractible.
-    ///
-    /// If your complex is contractible and you enable this flag, the output will be empty. This is
-    /// not a bug: the mapping cone of the identity map of the empty complex is contractible.
-    #[arg(short, long, default_value_t = false)]
-    pub minimize_pair: bool,
-
-    /// Print the current complex after each pinch loop.
-    ///
-    /// Useful if you are simplifying a very large complex and would like to guard against
-    /// unexpected interruptions, e.g. power outages. Be sure to redirect stdout to a file for this
-    /// flag to be useful.
-    #[arg(short = 'w', long, default_value_t = false)]
-    pub write_each_pinch: bool,
 
     /// Print the output in XML format for parsing by the GAP simpcomp package.
     ///
     /// If you are using simpcomp to calculate properties of your complex, you can enable this flag
-    /// to print the output in a format that can then be loaded into GAP:
-    ///
-    /// gap> my_simplified_complex := SCLoadXML("my-simplified-complex.sc");
+    /// to print the output in a format that can then be loaded into GAP with `SCLoadXML`.
     #[arg(short, long, default_value_t = false)]
     pub xml: bool,
+
 }
