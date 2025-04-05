@@ -19,7 +19,7 @@ pub struct Cli {
     #[arg(short, long, default_value_t = false)]
     pub check_input: bool,
 
-    /// Skip taking iterated Čech nerves.
+    /// Skip simplification by iterated Čech nerves.
     ///
     /// The Čech nerve of a complex has the same homotopy type as the complex and roughly exchanges
     /// the sets of facets and vertices, except certain "redundant" vertices are naturally removed.
@@ -32,12 +32,15 @@ pub struct Cli {
     #[arg(short = 'N', long, default_value_t = false)]
     pub skip_nerve: bool,
 
-    /// Skip the "pinch" algorithm.
+    /// Limit the "pinch" algorithm to this many runs.
     ///
     /// The pinch algorithm identifies edges which can be contracted without altering the
-    /// homotopy type and contracts them.
-    #[arg(short = 'P', long, default_value_t = false)]
-    pub skip_pinch: bool,
+    /// homotopy type and contracts them. Successive runs provide diminishing returns. The program
+    /// will always stop pinching once there are no longer any edges that can be contracted.
+    ///
+    /// Use `0` to disable pinching.
+    #[arg(short = 'P', long, default_value_t = 2, value_name = "MAX")]
+    pub max_pinch_loops: usize,
 
     /// Only print the simplified input.
     ///

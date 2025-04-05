@@ -44,10 +44,7 @@ use std::io::BufRead;
 fn read_input() -> SimplicialComplex {
     let stdin = stdin();
     let mut lines = stdin.lock().lines();
-    let mut facets: Vec<Simplex> = Vec::new();
-    // We ignore empty lines except/unless the first line is empty, in which case it is the empty
-    // simplex.
-    let mut first = true;
+    let mut facets = Vec::<Simplex>::new();
     while let Some(line) = lines.next() {
         let vertices = line
             .expect("A complex should have at least one facet.")
@@ -58,13 +55,16 @@ fn read_input() -> SimplicialComplex {
                     .expect("Vertices should be labeled by natural numbers less than 2^32.")
             })
             .collect::<HashSet<u32>>();
-        if !vertices.is_empty() || first {
+        if !vertices.is_empty() {
             facets.push(Simplex(vertices));
         }
-        first = false;
     }
 
-    SimplicialComplex { facets }
+    if facets.is_empty() {
+        SimplicialComplex::default()
+    } else {
+        SimplicialComplex { facets }
+    }
 }
 
 fn write_sc(sc: &SimplicialComplex, xml: bool) {
@@ -86,7 +86,11 @@ fn write_sc(sc: &SimplicialComplex, xml: bool) {
         let mut facet_vec: Vec<PrettySimplex> =
             sc.facets.iter().map(PrettySimplex::from).collect();
         facet_vec.sort();
-        let d = (sc.vertex_set().len() - 1).to_string().len();
+        // One more than the greatest vertex label: we should subtract but only if legal
+        let mut l = sc.vertex_set().len();
+        if l > 0 { l -= 1; }
+        // The number of digits in the greatest vertex label
+        let d = l.to_string().len();
         for f in facet_vec {
             f.print(d);
         }
@@ -95,25 +99,31 @@ fn write_sc(sc: &SimplicialComplex, xml: bool) {
 
 fn main() {
     let cli = Cli::parse();
-    let xml = cli.xml;
     let mut sc = read_input();
 
     if cli.skip_nerve {
         if cli.check_input {
             sc = SimplicialComplex::from_check(sc.facets);
         } else {
+            // Even if we don't check the input, we check the first facet because it's cheap and
+            // important.
             sc.facets.select_nth_unstable_by_key(0, Simplex::len);
         }
     } else {
         sc.reduce();
     }
 
-    if !cli.skip_pinch {
-        sc.pinch();
+    let mut i = cli.max_pinch_loops;
+    if i > 0 {
+        while i > 0 && sc.pinch() {
+            i -= 1;
+            sc.relabel_vertices();
+        }
+    } else {
+        sc.relabel_vertices();
     }
 
-    sc.relabel_vertices();
-
+    let xml = cli.xml;
     if cli.no_pair {
         write_sc(&sc, xml);
     } else {

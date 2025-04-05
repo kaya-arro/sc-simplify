@@ -7,9 +7,15 @@ fn len_sort(vec: &mut Vec<Simplex>) {
     vec.sort_by(|a, b| b.len().cmp(&a.len()));
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SimplicialComplex {
     pub facets: Vec<Simplex>,
+}
+
+impl Default for SimplicialComplex {
+    fn default() -> Self {
+        Self { facets: Vec::from([Simplex::default()]) }
+    }
 }
 
 impl From<&Simplex> for SimplicialComplex {
@@ -55,10 +61,11 @@ impl SimplicialComplex {
     }
 
     pub fn vertex_set(&self) -> HashSet<u32> {
-        let mut vertex_set = new_hs::<u32>(self.facets.len() * self.first_len());
+        let mut vertex_set = new_hs::<u32>(self.facets.len());
         for facet in &self.facets {
             vertex_set.extend(&facet.0);
         }
+        vertex_set.shrink_to_fit();
 
         vertex_set
     }
@@ -77,6 +84,7 @@ impl SimplicialComplex {
                 int_faces.insert(facet & other_facet);
             }
         }
+        int_faces.shrink_to_fit();
 
         Self::from_check(int_faces.into_iter().collect())
     }
@@ -88,9 +96,9 @@ impl SimplicialComplex {
         let mut nerve_faces = new_v::<Simplex>(vertex_set.len());
         for v in vertex_set {
             let mut nerve_simp_verts = new_hs::<u32>(facet_count);
-            for i in (0..facet_count).filter(|i| self.facets[*i].contains(&v)) {
-                nerve_simp_verts.insert(i as u32);
-            }
+            nerve_simp_verts.extend(
+                (0..facet_count).filter(|i| self.facets[*i].contains(&v)).map(|i| i as u32)
+            );
             nerve_simp_verts.shrink_to_fit();
             nerve_faces.push(Simplex(nerve_simp_verts));
         }
@@ -162,13 +170,10 @@ impl SimplicialComplex {
         }
     }
 
-    fn enlarge_in_supercomplex<'a>(&mut self, supercomplex: &'a Self) -> Vec<&'a Simplex> {
+    fn enlarge_in_supercomplex(&mut self, supercomplex: &Self) -> Vec<Simplex> {
         let mut remainder = new_v::<&Simplex>(supercomplex.facets.len());
-        for facet in &supercomplex.facets {
-            if !self.facets.contains(facet) {
-                remainder.push(facet);
-            }
-        }
+        remainder.extend(supercomplex.facets.iter().filter(|f| !self.facets.contains(f)));
+        remainder.shrink_to_fit();
         let mut remove_these = new_hs::<&Simplex>(remainder.len());
         let mut done = false;
         while !done {
@@ -187,16 +192,16 @@ impl SimplicialComplex {
         }
 
         self.facets.sort_by_key(Simplex::len);
-        let mut checked_facets = new_v::<Simplex>(self.facets.len());
+        let mut facets = new_v::<Simplex>(self.facets.len());
         for old_facet in &self.facets {
-            if !checked_facets.iter().any(|new_facet| old_facet <= new_facet) {
-                checked_facets.push(old_facet.clone());
+            if !facets.iter().any(|new_facet| old_facet <= new_facet) {
+                facets.push(old_facet.clone());
             }
         }
-        checked_facets.shrink_to_fit();
+        facets.shrink_to_fit();
 
-        *self = Self { facets: checked_facets };
-        remainder
+        *self = Self { facets };
+        return remainder.into_iter().map(|f| f.clone()).collect();
     }
 
     #[inline]
@@ -204,6 +209,7 @@ impl SimplicialComplex {
         return self.enlarge_in_supercomplex(supercomplex).is_empty();
     }
 
+    #[inline]
     // It may seem odd that we always calculate exactly three links at a time. The reason is
     // because it is more efficient to calculate links simultaneously than one-by-one: we avoid
     // looping through the facets unnecessarily. We could calculate an arbitrary number of links at
@@ -233,6 +239,7 @@ impl SimplicialComplex {
         links
     }
 
+    #[inline]
     // In the returned vec, index i holds the vec of vertices less than i connected to i.
     fn edge_table(&self) -> Vec<(u32,Vec<u32>)> {
         let first_len = self.first_len();
@@ -245,14 +252,15 @@ impl SimplicialComplex {
         }
 
         // Set up edges_map
-        let vertex_set = self.vertex_set();
-        let vert_count = vertex_set.len();
+        let mut vertex_vec = to_v(&self.vertex_set());
+        vertex_vec.sort_unstable_by(|a, b| b.cmp(a));
+        let vert_count = vertex_vec.len();
         let mut edges_map = HashMap::<u32, HashSet<u32>>::with_capacity_and_hasher(
             vert_count, the_hasher()
         );
-        let an_edge_set = new_hs::<u32>(vert_count - 1);
+        let an_edge_set = new_hs::<u32>(first_len);
 
-        for v in &vertex_set {
+        for v in &vertex_vec {
             edges_map.insert(*v, an_edge_set.clone());
         }
 
@@ -266,10 +274,6 @@ impl SimplicialComplex {
                 };
             }
         }
-
-        let mut vertex_vec = to_v(&vertex_set);
-        vertex_vec.sort_unstable_by(|a, b| b.cmp(a));
-
         let mut edge_vec = new_v::<(u32, Vec<u32>)>(vert_count);
         for v in vertex_vec {
             let v_edge_set = &edges_map[&v];
@@ -281,22 +285,35 @@ impl SimplicialComplex {
         return edge_vec
     }
 
-
-    pub fn pinch(&mut self) {
+    pub fn pinch(&mut self) -> bool {
+        let mut pinched = false;
 
         for entry in self.edge_table() {
             let old = entry.0;
             let edges = entry.1;
+
+            // let mut i = 0usize;
 
             for new in edges {
                 let o_s = Simplex::from([old]);
                 let n_s = Simplex::from([new]);
                 let e_s = Simplex::from([old, new]);
 
-                let [ref o_link, ref n_link, ref mut e_link] = self.three_links([o_s, n_s, e_s]);
+                let mut triple = self.three_links([o_s, n_s, e_s]);
+                let [ref o_link, ref n_link, ref mut e_link] = triple;
                 let intersection = o_link & n_link;
 
+                // i += 1;
+                // if i > 1 {
+                //     eprintln!["i = {}", i];
+                //     eprintln![
+                //         "Size of `self`: {}; of `e_link`: {}; of `intersection` {}",
+                //             size_of_val(self), size_of_val(e_link), size_of_val(&intersection),
+                //             ];
+                // }
+
                 if e_link.is_deformation_retract(&intersection) {
+                    pinched = true;
                     // eprintln!["Pinching {} to {}", old, new];
                     for facet in &mut self.facets {
                         if facet.remove(&old) {
@@ -305,11 +322,16 @@ impl SimplicialComplex {
                     }
 
                     break;
+                } else {
+                    // eprintln!["Cannot pinch {} to {}", old, new];
                 }
+                drop(intersection);
+                drop(triple);
             }
         }
 
         *self = Self::from_check(self.facets.clone());
+        pinched
     }
 
     #[inline]

@@ -5,46 +5,6 @@ use std::ops::{BitOr, Sub};
 use std::hash::{Hash, Hasher};
 
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub struct Edge(pub u32, pub u32);
-
-impl PartialOrd for Edge {
-    fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
-        if self.0 > rhs.0 {
-            return Some(Ordering::Less);
-        }
-        if self.0 < rhs.0 {
-            return Some(Ordering::Greater);
-        }
-        if self.1 > rhs.1 {
-            return Some(Ordering::Greater);
-        }
-        if self.1 < rhs.1 {
-            return Some(Ordering::Less);
-        }
-        return Some(Ordering::Equal);
-    }
-}
-
-impl Ord for Edge {
-    fn cmp(&self, rhs: &Self) -> Ordering {
-        if self.0 > rhs.0 {
-            return Ordering::Less;
-        }
-        if self.0 < rhs.0 {
-            return Ordering::Greater;
-        }
-        if self.1 > rhs.1 {
-            return Ordering::Greater;
-        }
-        if self.1 < rhs.1 {
-            return Ordering::Less;
-        }
-        return Ordering::Equal;
-    }
-}
-
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Simplex(pub HashSet<u32>);
 

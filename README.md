@@ -62,17 +62,11 @@ sc1.homology(subcomplex=sc2, enlarge=False)
 
 3. Clone this repository.
 
-4. *Optional but strongly encouraged*: Specify the target architecture in `.cargo/config.toml` appropriate for your system. You can view a list of supported architectures with the command `rustup target list`.
-   
-   - Note: `.cargo/config.toml` has `rustflags = ['-Ctarget-cpu=native']` enabled. This means that the binary you build may not work on machines other than the one on which you build it. This lack of portability buys you the with the advantage of shorter run times because the compiler will optimize the binary for your specific CPU, but you can comment out this flag if you wish.
-   
-   - Because the goal of the project is efficient computation, you are encouraged to build the binary on each machine you will run it on.
+4. Execute `cargo build -r` in the root directory of the repository.
 
-5. Execute `cargo build -r` in the root directory of the repository.
+5. Optional: Copy or link `sc-simplify.1.gz` into `/usr/share/man/man1/` so that `man sc-simplify` brings up the manual (see below for how to do this from the terminal).
 
-6. Optional: Copy or link `sc-simplify.1.gz` into `/usr/share/man/man1/` so that `man sc-simplify` brings up the manual.
-
-7. The binary can be found at `target/release/sc-simplify`. Link to it from your `PATH` with
+6. The binary can be found at `target/release/sc-simplify`. Link to it from your `PATH` with
    
    ```bash
    sudo ln -s $(pwd)/target/release/sc-simplify /usr/bin/
@@ -98,7 +92,7 @@ sc1.homology(subcomplex=sc2, enlarge=False)
 
 - [x] Implement a flag to switch to a slower but more thorough internal contractibility test that could achieve more simplification at the cost of slower run time.
 
-- [ ] Include shell scripts to facilitate interfacing with GAP and Sage.
+- [ ] Include shell scripts to further facilitate interfacing with GAP and Sage.
 
 - [ ] Implement a flag to enable a much slower mode that tries to find a truly minimal version of a complex or pair.
 
@@ -106,9 +100,7 @@ sc1.homology(subcomplex=sc2, enlarge=False)
 
 - [ ] Include examples in the repository.
 
-- [ ] (Maybe) implement a flag to enable a status bar to give a sense of the program's progress.
-  
-  - This would require some refactoring of the program's I/O system. It would be kind of nice to have but isn't a high priority.
+- [ ] Implement a flag to enable a status bar to give a sense of the program's progress.
 
 - [ ] The `simplicial_topology` crate implements mod 2 homology for simplicial complexes. Maybe write an interface with that crate.
 
