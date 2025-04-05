@@ -1,7 +1,7 @@
 use rustc_hash::FxHashMap as HashMap;
 use std::collections::BTreeSet;
 
-use crate::{BitAnd, Default, HashSet, c, simplex::{Simplex, Edge}, the_hasher};
+use crate::{BitAnd, Default, c, HashSet, simplex::Simplex, the_hasher};
 
 fn len_sort(vec: &mut Vec<Simplex>) {
     vec.sort_by(|a, b| b.len().cmp(&a.len()));
@@ -213,58 +213,92 @@ impl SimplicialComplex {
         links
     }
 
-    fn edges(&self) -> Vec<Edge> {
+    // In the returned vec, index i holds the vec of vertices less than i connected to i.
+    fn edge_table(&self) -> Vec<(u32,Vec<u32>)> {
         let first_len = self.first_len();
-        if first_len == 0 {
-            return Vec::new();
+        if first_len < 2 {
+            let vs = self.vertex_set();
+            let mut out: Vec<(u32, Vec<u32>)> = Vec::with_capacity(vs.len());
+            for i in vs {
+                out.push((i, Vec::new()));
+            }
+            return out;
         }
-        let upper_bound = self.facets.len() * first_len * (first_len - 1);
-        let mut edge_set: HashSet<Edge> =
-        HashSet::with_capacity_and_hasher(upper_bound, the_hasher());
 
+        // let edges_bound = self.facets.len() * first_len * (first_len - 1) / 2;
+        // let mut edge_set: HashSet<Edge> =
+        // HashSet::with_capacity_and_hasher(edges_bound, the_hasher());
+
+        // Benchmark actually using vertex_set to get better bounds
+
+        // Set up edges_map
+        let vertex_set = self.vertex_set();
+        let vert_count = vertex_set.len();
+        let facet_count = self.facets.len();
+        let mut edges_map =
+        HashMap::<u32, HashSet<u32>>::with_capacity_and_hasher(vert_count, the_hasher());
+        let an_edge_set: HashSet<u32> =
+        HashSet::with_capacity_and_hasher(facet_count * (first_len - 1), the_hasher());
+
+        for v in &vertex_set {
+            edges_map.insert(*v, an_edge_set.clone());
+        }
+
+        // Populate edges_map
         for facet in &self.facets {
-            let mut tuple: Vec<u32> = c![*v, for v in &facet.0];
-            let len = tuple.len();
+            let len = facet.len();
+            let mut tuple: Vec<u32> = Vec::with_capacity(len);
+            for v in &facet.0 {
+                tuple.push(*v);
+            }
             tuple.sort_unstable();
             for i in 0..len - 1 {
                 for j in i + 1..len {
-                    edge_set.insert(Edge(tuple[j], tuple[i]));
+                    if let Some(edge_set) = edges_map.get_mut(&tuple[j]) {
+                        edge_set.insert(tuple[i]);
+                    };
                 }
             }
         }
 
-        let mut edge_vec = c![edge, for edge in edge_set];
-        edge_vec.sort_unstable();
-        return edge_vec;
+        let mut vertex_vec: Vec<u32> = Vec::with_capacity(vert_count);
+        vertex_vec.extend(vertex_set);
+        vertex_vec.sort_unstable_by(|a, b| b.cmp(a));
+
+        let mut edge_vec: Vec<(u32, Vec<u32>)> = Vec::with_capacity(vert_count);
+        for v in vertex_vec {
+            let v_edge_set = &edges_map[&v];
+            let mut v_edge_vec: Vec<u32> = Vec::with_capacity(v_edge_set.len());
+            v_edge_vec.extend(v_edge_set);
+            v_edge_vec.sort_unstable_by(|a, b| b.cmp(a));
+            edge_vec.push((v, v_edge_vec));
+        }
+
+        return edge_vec
     }
 
     pub fn pinch(&mut self, thorough: bool) {
-        let mut moved = HashSet::<u32>::with_capacity_and_hasher(
-            self.facets.len() * self.first_len(),
-            the_hasher(),
-        );
-        for edge in self.edges() {
-            let old = edge.0;
-            let new = edge.1;
 
-            if moved.contains(&old) || moved.contains(&new) {
-                continue;
-            }
+        for entry in self.edge_table() {
+            let old = entry.0;
+            let edges = entry.1;
 
-            let o_s = Simplex::from([old]);
-            let n_s = Simplex::from([new]);
-            let e_s = Simplex::from([old, new]);
+            for new in edges {
+                let o_s = Simplex::from([old]);
+                let n_s = Simplex::from([new]);
+                let e_s = Simplex::from([old, new]);
 
-            let [ref o_link, ref n_link, ref mut e_link] = self.three_links([o_s, n_s, e_s]);
-            let intersection = o_link & n_link;
+                let [ref o_link, ref n_link, ref mut e_link] = self.three_links([o_s, n_s, e_s]);
+                let intersection = o_link & n_link;
 
-            if e_link.is_deformation_retract(&intersection, thorough) {
-                moved.insert(old);
-
-                for facet in &mut self.facets {
-                    if facet.remove(&old) {
-                        facet.insert(&new);
+                if e_link.is_deformation_retract(&intersection, thorough) {
+                    for facet in &mut self.facets {
+                        if facet.remove(&old) {
+                            facet.insert(&new);
+                        }
                     }
+
+                    break;
                 }
             }
         }
@@ -287,8 +321,9 @@ impl SimplicialComplex {
 
     pub fn relabel_vertices(&mut self) {
         let vertex_set = self.vertex_set();
+        let vertex_count = vertex_set.len();
         let mut vertex_dict: HashMap<u32, u32> =
-        HashMap::with_capacity_and_hasher(vertex_set.len(), the_hasher());
+        HashMap::with_capacity_and_hasher(vertex_count, the_hasher());
         let mut n = 0u32;
         for v in vertex_set.into_iter().collect::<Vec<u32>>() {
             vertex_dict.insert(v, n);

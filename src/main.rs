@@ -15,6 +15,7 @@ mod simplicial_complex;
 use simplicial_complex::SimplicialComplex;
 
 use clap::Parser;
+
 use cute::c;
 
 mod cli;
@@ -26,6 +27,8 @@ fn read_input() -> SimplicialComplex {
     let stdin = stdin();
     let mut lines = stdin.lock().lines();
     let mut facets: Vec<Simplex> = Vec::new();
+    // We ignore empty lines except/unless the first line is empty, in which case it is the empty
+    // simplex.
     let mut first = true;
     while let Some(line) = lines.next() {
         let vertices = line
