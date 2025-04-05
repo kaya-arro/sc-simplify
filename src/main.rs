@@ -10,14 +10,17 @@ fn the_hasher() -> FxBuildHasher {
     FxBuildHasher::default()
 }
 
+#[inline]
 fn new_hs<T>(len: usize) -> HashSet<T> {
     HashSet::with_capacity_and_hasher(len, the_hasher())
 }
 
+#[inline]
 fn new_v<T>(len: usize) -> Vec<T> {
     Vec::<T>::with_capacity(len)
 }
 
+#[inline]
 fn to_v<T: Copy>(s: &HashSet<T>) -> Vec<T> {
     let mut v = new_v::<T>(s.len());
     v.extend(s);
@@ -69,9 +72,9 @@ fn write_sc(sc: &SimplicialComplex, xml: bool) {
         let xml_prefix = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SimplicialComplexV2 type=\"SCSimplicialComplex\">\n	<SCFacetsEx type=\"SCArray\">[[".to_string();
         let xml_postfix = "]]</SCFacetsEx>\n</SimplicialComplexV2>".to_string();
 
-        let mut facet_strings_vec: Vec<String> = Vec::with_capacity(sc.facets.len());
+        let mut facet_strings_vec = new_v::<String>(sc.facets.len());
         for f in &sc.facets {
-            let mut string_vec: Vec<String> = Vec::with_capacity(f.len());
+            let mut string_vec = new_v::<String>(f.len());
             string_vec.extend(f.0.iter().map(u32::to_string));
             facet_strings_vec.push(string_vec.join(","));
         }

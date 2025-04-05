@@ -2,6 +2,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{BitAnd, Default, HashSet, simplex::Simplex, the_hasher, new_hs, new_v, to_v};
 
+#[inline]
 fn len_sort(vec: &mut Vec<Simplex>) {
     vec.sort_by(|a, b| b.len().cmp(&a.len()));
 }
@@ -12,16 +13,16 @@ pub struct SimplicialComplex {
 }
 
 impl From<&Simplex> for SimplicialComplex {
+    #[inline]
     fn from(simplex: &Simplex) -> Self {
-        Self {
-            facets: Vec::from([simplex.clone()]),
-        }
+        Self { facets: Vec::from([simplex.clone()]) }
     }
 }
 
 impl BitAnd for &SimplicialComplex {
     type Output = SimplicialComplex;
 
+    #[inline]
     fn bitand(self, rhs: Self) -> SimplicialComplex {
         self.intersection_with_complex(rhs)
     }
@@ -40,6 +41,7 @@ impl SimplicialComplex {
                         facets.push(old_facet);
                     }
                 }
+                facets.shrink_to_fit();
 
                 Self { facets }
             }
@@ -47,6 +49,7 @@ impl SimplicialComplex {
     }
 
 
+    #[inline]
     pub fn first_len(&self) -> usize {
         return self.facets[0].len();
     }
@@ -88,6 +91,7 @@ impl SimplicialComplex {
             for i in (0..facet_count).filter(|i| self.facets[*i].contains(&v)) {
                 nerve_simp_verts.insert(i as u32);
             }
+            nerve_simp_verts.shrink_to_fit();
             nerve_faces.push(Simplex(nerve_simp_verts));
         }
 
@@ -159,11 +163,10 @@ impl SimplicialComplex {
         }
     }
 
-    // Benchmark with vec
     fn enlarge_in_supercomplex<'a>(&mut self, supercomplex: &'a Self) -> Vec<&'a Simplex> {
-        let mut remainder: Vec<&Simplex> = supercomplex.facets.iter().collect();
+        let mut remainder = new_v::<&Simplex>(supercomplex.facets.len());
+        remainder.extend(&supercomplex.facets);
         remainder.retain(|s| !self.facets.contains(s));
-        // let mut remove_these: = new_v::<Simplex>(remainder.len());
         let mut remove_these = new_hs::<&Simplex>(remainder.len());
         let mut done = false;
         while !done {
@@ -171,14 +174,14 @@ impl SimplicialComplex {
             for f in &remainder {
                 if self.intersection_with_simplex(f).is_contractible() {
                     self.facets.push((*f).clone());
-                    // remove_these.push(f);
                     remove_these.insert(f);
                     done = false;
                 }
             }
-            // Benchmark Iterating over remove_these.drain()
             remainder.retain(|s| !remove_these.contains(s));
+            remainder.shrink_to_fit();
             remove_these.clear();
+            remove_these.shrink_to(remainder.len());
         }
 
         self.facets.sort_by_key(Simplex::len);
@@ -188,10 +191,13 @@ impl SimplicialComplex {
                 checked_facets.push(old_facet.clone());
             }
         }
+        checked_facets.shrink_to_fit();
+
         *self = Self { facets: checked_facets };
         remainder
     }
 
+    #[inline]
     fn is_deformation_retract(&mut self, supercomplex: &Self) -> bool {
         return self.enlarge_in_supercomplex(supercomplex).is_empty();
     }
@@ -249,7 +255,6 @@ impl SimplicialComplex {
             edges_map.insert(*v, an_edge_set.clone());
         }
 
-        // Try using a BTreeSet for edge_set
         for facet in &self.facets {
             let len = facet.len();
             let mut tuple = to_v(&facet.0);
@@ -306,6 +311,7 @@ impl SimplicialComplex {
         *self = Self::from_check(self.facets.clone());
     }
 
+    #[inline]
     fn first_facet_to_complex(&self) -> Self {
         Self {
             facets: Vec::from([self.facets[0].clone()]),
