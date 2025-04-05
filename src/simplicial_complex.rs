@@ -98,7 +98,6 @@ impl SimplicialComplex {
         Self::from_check(nerve_faces)
     }
 
-
     pub fn reduce(&mut self) {
         let mut return_base = true;
         let mut base_vertex_count = self.vertex_set().len();
@@ -165,8 +164,11 @@ impl SimplicialComplex {
 
     fn enlarge_in_supercomplex<'a>(&mut self, supercomplex: &'a Self) -> Vec<&'a Simplex> {
         let mut remainder = new_v::<&Simplex>(supercomplex.facets.len());
-        remainder.extend(&supercomplex.facets);
-        remainder.retain(|s| !self.facets.contains(s));
+        for facet in &supercomplex.facets {
+            if !self.facets.contains(facet) {
+                remainder.push(facet);
+            }
+        }
         let mut remove_these = new_hs::<&Simplex>(remainder.len());
         let mut done = false;
         while !done {
@@ -245,11 +247,10 @@ impl SimplicialComplex {
         // Set up edges_map
         let vertex_set = self.vertex_set();
         let vert_count = vertex_set.len();
-        let facet_count = self.facets.len();
         let mut edges_map = HashMap::<u32, HashSet<u32>>::with_capacity_and_hasher(
             vert_count, the_hasher()
         );
-        let an_edge_set = new_hs::<u32>(facet_count * (first_len - 1));
+        let an_edge_set = new_hs::<u32>(vert_count - 1);
 
         for v in &vertex_set {
             edges_map.insert(*v, an_edge_set.clone());
@@ -313,9 +314,7 @@ impl SimplicialComplex {
 
     #[inline]
     fn first_facet_to_complex(&self) -> Self {
-        Self {
-            facets: Vec::from([self.facets[0].clone()]),
-        }
+        Self { facets: Vec::from([self.facets[0].clone()]) }
     }
 
     pub fn contractible_subcomplex(&self) -> Self {
