@@ -1,3 +1,4 @@
+use std::cmp::min;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{BitAnd, Default, HashSet, simplex::Simplex, the_hasher, new_hs, new_v, to_v};
@@ -78,7 +79,7 @@ impl SimplicialComplex {
     }
 
     fn intersection_with_complex(&self, other: &Self) -> Self {
-        let mut int_faces = new_hs::<Simplex>(self.facets.len() * other.facets.len());
+        let mut int_faces = new_hs::<Simplex>(min(self.facets.len(), other.facets.len()));
         for facet in &self.facets {
             for other_facet in &other.facets {
                 int_faces.insert(facet & other_facet);
@@ -210,37 +211,29 @@ impl SimplicialComplex {
     }
 
     #[inline]
-    // It may seem odd that we always calculate exactly three links at a time. The reason is
-    // because it is more efficient to calculate links simultaneously than one-by-one: we avoid
-    // looping through the facets unnecessarily. We could calculate an arbitrary number of links at
-    // a time, but that would require using Vecs. By calculating three at a time, we can use arrays
-    // and keep more of our data on the stack. We only ever wind up needing to calculate exactly
-    // three links at a time, so this works out fine despite looking weird.
-    fn three_links(&self, faces: [Simplex; 3]) -> [Self; 3] {
+    // I should just make this take a Vec<Simplex> as input
+    fn links(&self, faces: Vec<Simplex>) -> Vec<Self> {
         let facets_len = self.facets.len();
-        let mut links = [
-            Self { facets: new_v(facets_len) },
-            Self { facets: new_v(facets_len) },
-            Self { facets: new_v(facets_len) },
-        ];
+        let mut link_sets = new_v::<(Simplex, HashSet<Simplex>)>(faces.len());
+        link_sets.extend(faces.into_iter().map(|f| (f, new_hs(facets_len))));
         for facet in &self.facets {
-            for n in 0..3 {
-                let face = &faces[n];
+            for &mut (ref face, ref mut set) in &mut link_sets {
                 if face <= facet {
-                    links[n].facets.push(facet - face);
+                    set.insert(facet - face);
                 }
             }
         }
 
-        for n in 0..3 {
-            links[n].facets.shrink_to_fit();
+        for (_, set) in &mut link_sets {
+            set.shrink_to_fit();
         }
 
-        links
+        link_sets.into_iter().map(|s| Self::from_check(s.1.into_iter().collect())).collect()
     }
 
     #[inline]
-    // In the returned vec, index i holds the vec of vertices less than i connected to i.
+    // Returns vec holding (v, s) where v is a vertex and s is vec of edges less than v connected
+    // to v.
     fn edge_table(&self) -> Vec<(u32,Vec<u32>)> {
         let first_len = self.first_len();
         if first_len < 2 {
@@ -292,29 +285,19 @@ impl SimplicialComplex {
             let old = entry.0;
             let edges = entry.1;
 
-            // let mut i = 0usize;
-
             for new in edges {
                 let o_s = Simplex::from([old]);
                 let n_s = Simplex::from([new]);
                 let e_s = Simplex::from([old, new]);
 
-                let mut triple = self.three_links([o_s, n_s, e_s]);
-                let [ref o_link, ref n_link, ref mut e_link] = triple;
+                let triple = self.links(Vec::from([o_s, n_s, e_s]));
+                let o_link = &triple[0];
+                let n_link = &triple[1];
+                let mut e_link = triple[2].clone();
                 let intersection = o_link & n_link;
-
-                // i += 1;
-                // if i > 1 {
-                //     eprintln!["i = {}", i];
-                //     eprintln![
-                //         "Size of `self`: {}; of `e_link`: {}; of `intersection` {}",
-                //             size_of_val(self), size_of_val(e_link), size_of_val(&intersection),
-                //             ];
-                // }
 
                 if e_link.is_deformation_retract(&intersection) {
                     pinched = true;
-                    // eprintln!["Pinching {} to {}", old, new];
                     for facet in &mut self.facets {
                         if facet.remove(&old) {
                             facet.insert(&new);
@@ -322,11 +305,7 @@ impl SimplicialComplex {
                     }
 
                     break;
-                } else {
-                    // eprintln!["Cannot pinch {} to {}", old, new];
                 }
-                drop(intersection);
-                drop(triple);
             }
         }
 
