@@ -1,11 +1,27 @@
 use std::default::Default;
 use std::io::stdin;
 use std::ops::BitAnd;
+use std::collections::BTreeSet;
 
 use rustc_hash::FxBuildHasher;
 use rustc_hash::FxHashSet as HashSet;
+
 fn the_hasher() -> FxBuildHasher {
     FxBuildHasher::default()
+}
+
+fn new_hs<T>(len: usize) -> HashSet<T> {
+    HashSet::with_capacity_and_hasher(len, the_hasher())
+}
+
+fn new_v<T>(len: usize) -> Vec<T> {
+    Vec::<T>::with_capacity(len)
+}
+
+fn to_v<T: Copy>(s: &HashSet<T>) -> Vec<T> {
+    let mut v = new_v::<T>(s.len());
+    v.extend(s);
+    v
 }
 
 mod simplex;
@@ -16,13 +32,12 @@ use simplicial_complex::SimplicialComplex;
 
 use clap::Parser;
 
-use cute::c;
-
 mod cli;
 use cli::Cli;
 
 use std::io::BufRead;
 
+#[inline]
 fn read_input() -> SimplicialComplex {
     let stdin = stdin();
     let mut lines = stdin.lock().lines();
@@ -53,11 +68,17 @@ fn write_sc(sc: &SimplicialComplex, xml: bool) {
     if xml {
         let xml_prefix = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SimplicialComplexV2 type=\"SCSimplicialComplex\">\n	<SCFacetsEx type=\"SCArray\">[[".to_string();
         let xml_postfix = "]]</SCFacetsEx>\n</SimplicialComplexV2>".to_string();
-        let facet_strings = c![
-            c![v.to_string(), for v in &f.0].join(","), for f in &sc.facets
-        ]
-        .join("],[");
-        println!("{}", xml_prefix + &facet_strings + &xml_postfix);
+
+        let mut facet_strings_vec: Vec<String> = Vec::with_capacity(sc.facets.len());
+        for f in &sc.facets {
+            let mut string_vec: Vec<String> = Vec::with_capacity(f.len());
+            string_vec.extend(f.0.iter().map(u32::to_string));
+            facet_strings_vec.push(string_vec.join(","));
+        }
+
+        let complex_string = facet_strings_vec.join("],[");
+
+        println!("{}", xml_prefix + &complex_string + &xml_postfix);
     } else {
         let mut facet_vec: Vec<PrettySimplex> =
             sc.facets.iter().map(PrettySimplex::from).collect();
@@ -84,18 +105,8 @@ fn main() {
         sc.reduce();
     }
 
-    let mut thorough: bool;
-    if sc.first_len() > 4 {
-        thorough = true;
-    } else {
-        thorough = false;
-    }
-
     if !cli.skip_pinch {
-        sc.pinch(thorough);
-        if thorough && sc.first_len() < 5 {
-            thorough = false;
-        }
+        sc.pinch();
     }
 
     sc.relabel_vertices();
@@ -103,7 +114,7 @@ fn main() {
     if cli.no_pair {
         write_sc(&sc, xml);
     } else {
-        let contractible = sc.contractible_subcomplex(thorough);
+        let contractible = sc.contractible_subcomplex();
         write_sc(&sc, xml);
         print!("\n");
         write_sc(&contractible, xml);

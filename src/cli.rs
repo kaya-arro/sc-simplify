@@ -60,4 +60,7 @@ pub struct Cli {
     #[arg(short, long, default_value_t = false)]
     pub xml: bool,
 
+    // #[arg(short, long, default_value_t = false)]
+    // pub quiet: bool,
+
 }

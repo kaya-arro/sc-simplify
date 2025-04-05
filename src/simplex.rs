@@ -1,7 +1,8 @@
 use std::cmp::Ordering;
 
-use crate::{BitAnd, Default, HashSet, c, the_hasher};
+use crate::{BitAnd, Default, BTreeSet, HashSet, the_hasher};
 use std::ops::{BitOr, Sub};
+use std::hash::{Hash, Hasher};
 
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
@@ -53,6 +54,13 @@ impl Default for Simplex {
     }
 }
 
+impl Hash for Simplex {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.iter().collect::<BTreeSet<&u32>>().hash(state);
+    }
+}
+
+
 impl PartialOrd for Simplex {
     fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
         if self.0 == rhs.0 {
@@ -98,25 +106,32 @@ impl<T: IntoIterator<Item = u32>> From<T> for Simplex {
 }
 
 impl Simplex {
+
+
     pub fn contains(&self, item: &u32) -> bool {
         self.0.contains(item)
     }
+
 
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+
     pub fn is_disjoint(&self, other: &Simplex) -> bool {
         self.0.is_disjoint(&other.0)
     }
+
 
     pub fn insert(&mut self, item: &u32) -> bool {
         self.0.insert(*item)
     }
 
+
     pub fn remove(&mut self, item: &u32) -> bool {
         self.0.remove(item)
     }
+
 
     pub fn intersection(&self, rhs: &Self) -> Self {
         Self(&self.0 & &rhs.0)
@@ -128,9 +143,13 @@ impl Simplex {
 pub struct PrettySimplex(Vec<u32>);
 
 impl PrettySimplex {
+
     pub fn print(&self, d: usize) {
-        println!("{}", c![format!("{:>d$}", v), for v in &self.0].join(" "))
+        let mut vec_str: Vec<String> = Vec::with_capacity(self.0.len());
+        vec_str.extend(self.0.iter().map(|v| format!("{:>d$}", v)));
+        println!("{}", vec_str.join(" "))
     }
+
 }
 
 impl From<&Simplex> for PrettySimplex {
