@@ -1,7 +1,22 @@
 use std::default::Default;
-use std::io::stdin;
+use std::io::{stdin, BufRead};
 use std::ops::BitAnd;
 use std::collections::BTreeSet;
+
+mod simplex;
+use simplex::{Simplex, PrettySimplex};
+
+mod simplicial_complex;
+use simplicial_complex::SimplicialComplex;
+
+use clap::Parser;
+
+use console::Style;
+
+mod cli;
+use cli::Cli;
+
+use indicatif::{ProgressBar, ProgressStyle};
 
 use rustc_hash::FxBuildHasher;
 use rustc_hash::FxHashSet as HashSet;
@@ -27,18 +42,23 @@ fn to_v<T: Copy>(s: &HashSet<T>) -> Vec<T> {
     v
 }
 
-mod simplex;
-use simplex::{Simplex, PrettySimplex};
 
-mod simplicial_complex;
-use simplicial_complex::SimplicialComplex;
+#[inline]
+fn the_sty() -> ProgressStyle {
+    ProgressStyle::with_template(
+        "[{elapsed_precise}]  {msg:<25} [{bar:50}] {pos:>7}/{len}"
+    )
+    .unwrap()
+    .progress_chars("=> ")
+}
 
-use clap::Parser;
 
-mod cli;
-use cli::Cli;
+fn heading_style() -> Style {
+    let sty = Style::new().for_stderr().cyan().bold();
 
-use std::io::BufRead;
+    sty
+}
+
 
 #[inline]
 fn read_input() -> SimplicialComplex {
@@ -101,6 +121,8 @@ fn main() {
     let cli = Cli::parse();
     let mut sc = read_input();
 
+    let quiet = cli.quiet;
+
     if cli.skip_nerve {
         if cli.check_input {
             sc = SimplicialComplex::from_check(sc.facets);
@@ -110,12 +132,16 @@ fn main() {
             sc.facets.select_nth_unstable_by_key(0, Simplex::len);
         }
     } else {
+        // There is no need to perform checks if we reduce.
         sc.reduce();
     }
 
     let mut i = cli.max_pinch_loops;
     if i > 0 {
-        while i > 0 && sc.pinch() {
+        if !quiet {
+            eprintln!["{}", heading_style().apply_to("\nPinching the complex:\n")];
+        }
+        while i > 0 && sc.pinch(quiet) {
             i -= 1;
             sc.relabel_vertices();
         }
@@ -127,7 +153,10 @@ fn main() {
     if cli.no_pair {
         write_sc(&sc, xml);
     } else {
-        let contractible = sc.contractible_subcomplex();
+        if !quiet {
+            eprintln!["{}", heading_style().apply_to("\n\nAccreting a contractible subcomplex:\n")];
+        }
+        let contractible = sc.contractible_subcomplex(quiet);
         write_sc(&sc, xml);
         print!("\n");
         write_sc(&contractible, xml);

@@ -63,7 +63,8 @@ pub struct Cli {
     #[arg(short, long, default_value_t = false)]
     pub xml: bool,
 
-    // #[arg(short, long, default_value_t = false)]
-    // pub quiet: bool,
+    /// Suppresses the progress indicators.
+    #[arg(short, long, default_value_t = false)]
+    pub quiet: bool,
 
 }
