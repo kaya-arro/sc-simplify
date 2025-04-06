@@ -208,9 +208,11 @@ impl SimplicialComplex {
                     done = false;
 
                     n += 1;
-                    pb.set_message(
-                        format!["{}", update_style().apply_to(format!["Found {n} facets"])]
-                    );                }
+                }
+                pb.inc(1);
+                pb.set_message(
+                    format!["{}", update_style().apply_to(format!["Found {n} facets"])]
+                );
             }
 
             remainder.retain(|s| !remove_these.contains(s));
@@ -353,12 +355,12 @@ impl SimplicialComplex {
                     pinched = true;
 
                     n += 1;
-                    pb.inc(1);
-                    pb.set_message(
-                        format!["{}", update_style().apply_to(format!["Pinched {n} edges"])]
-                    );
                     break;
                 }
+                pb.inc(1);
+                pb.set_message(
+                    format!["{}", update_style().apply_to(format!["Pinched {n} edges"])]
+                );
             }
         }
         pb.finish();
