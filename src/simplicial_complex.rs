@@ -1,7 +1,7 @@
 use std::cmp::min;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::{BitAnd, Default, ProgressBar, the_sty, HashSet, simplex::Simplex, the_hasher, new_hs, new_v, to_v};
+use crate::{BitAnd, Default, ProgressBar, update_style, the_sty, HashSet, simplex::Simplex, the_hasher, new_hs, new_v, to_v};
 
 #[inline]
 fn len_sort(vec: &mut Vec<Simplex>) {
@@ -185,8 +185,7 @@ impl SimplicialComplex {
         while !done {
             done = true;
 
-            let mut n: u32;
-            n = 0;
+            let mut n = self.facets.len();
 
             let r_len = remainder.len();
             let pb: ProgressBar;
@@ -195,17 +194,23 @@ impl SimplicialComplex {
             } else {
                 pb = ProgressBar::new(r_len as u64);
                 pb.set_style(the_sty());
-                pb.set_message(format!("Enlarging subcomplex of {} facets", self.facets.len()));
+                pb.set_message(
+                    format!["{}", update_style().apply_to(format!["Found {n} facets"])]
+                );
             }
 
+            // Parallelize this
             for f in &remainder {
                 if self.intersection_with_simplex(f).is_contractible() {
-                    done = false;
-                    n += 1;
-
                     self.facets.push((*f).clone());
                     remove_these.insert(f);
-                }
+
+                    done = false;
+
+                    n += 1;
+                    pb.set_message(
+                        format!["{}", update_style().apply_to(format!["Found {n} facets"])]
+                    );                }
             }
 
             remainder.retain(|s| !remove_these.contains(s));
@@ -213,7 +218,7 @@ impl SimplicialComplex {
             remove_these.clear();
             remove_these.shrink_to(remainder.len());
 
-            pb.finish_with_message(format!("Added {n} facets"));
+            pb.finish();
         }
 
         self.facets.sort_by_key(Simplex::len);
@@ -306,24 +311,28 @@ impl SimplicialComplex {
         let mut pinched = false;
 
         let edges = self.edge_table();
-        let edges_count = edges.len();
+        let vert_count: usize = edges.len();
+
+        let mut n: usize;
+        n = 0;
 
         let pb: ProgressBar;
         if quiet {
             pb = ProgressBar::hidden();
         } else {
-            pb = ProgressBar::new(edges_count as u64);
+            pb = ProgressBar::new(vert_count as u64);
             pb.set_style(the_sty());
-            pb.set_message(format!("Pinching {edges_count} vertices"));
+            pb.set_message(
+                format!["{}", update_style().apply_to(format!["Pinched {n} edges"])]
+            );
         }
 
-        let mut n: u32;
-        n = 0;
+        // Parallelize this
         for entry in edges {
             let old = entry.0;
-            let edges = entry.1;
+            let adj_edges = entry.1;
 
-            for new in edges {
+            for &new in &adj_edges {
                 let o_s = Simplex::from([old]);
                 let n_s = Simplex::from([new]);
                 let e_s = Simplex::from([old, new]);
@@ -335,19 +344,24 @@ impl SimplicialComplex {
                 let intersection = o_link & n_link;
 
                 if e_link.is_deformation_retract(&intersection) {
-                    pinched = true;
-                    n += 1;
                     for facet in &mut self.facets {
                         if facet.remove(&old) {
                             facet.insert(&new);
                         }
                     }
+
+                    pinched = true;
+
+                    n += 1;
                     pb.inc(1);
+                    pb.set_message(
+                        format!["{}", update_style().apply_to(format!["Pinched {n} edges"])]
+                    );
                     break;
                 }
             }
         }
-        pb.finish_with_message(format!("Contracted {n} edges"));
+        pb.finish();
 
         *self = Self::from_check(self.facets.clone());
         pinched

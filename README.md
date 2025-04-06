@@ -84,9 +84,9 @@ sc1.homology(subcomplex=sc2, enlarge=False)
 
 - [x] Make tweaks to improve performance.
 
-- [ ] Make more tweaks to improve performance.
+- [x] Make more tweaks to improve performance.
 
-- [ ] Implement optional multithreading to accelerate the `enlarge_in_supercomplex` algorithm.
+- [ ] Implement multithreading.
 
 - [ ] Implement a "pair mode" that enlarges a given subcomplex.
 
@@ -100,7 +100,7 @@ sc1.homology(subcomplex=sc2, enlarge=False)
 
 - [ ] Include examples in the repository.
 
-- [ ] Implement a flag to enable a status bar to give a sense of the program's progress.
+- [x] Make a progress bar.
 
 - [ ] The `simplicial_topology` crate implements mod 2 homology for simplicial complexes. Maybe write an interface with that crate.
 
