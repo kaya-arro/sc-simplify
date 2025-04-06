@@ -352,15 +352,16 @@ impl SimplicialComplex {
                         }
                     }
 
-                    pinched = true;
-
                     n += 1;
+                    pb.set_message(
+                        format!["{}", update_style().apply_to(format!["Pinched {n} edges"])]
+                    );
+                    pb.inc(1);
+
+                    pinched = true;
                     break;
                 }
                 pb.inc(1);
-                pb.set_message(
-                    format!["{}", update_style().apply_to(format!["Pinched {n} edges"])]
-                );
             }
         }
         pb.finish();
