@@ -58,7 +58,7 @@ sc1.homology(subcomplex=sc2, enlarge=False)
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    ```
 
-2. If necessary (e.g. if you did not use the official installation script), update Rust to the latest edition with `rust update`.
+2. If necessary (e.g. if you did not use the official installation script), update Rust to the latest edition with `rustup upgrade`.
 
 3. Clone this repository.
 
