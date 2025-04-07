@@ -201,6 +201,7 @@ impl SimplicialComplex {
 
             // Parallelize this
             for f in &remainder {
+                pb.inc(1);
                 if self.intersection_with_simplex(f).is_contractible() {
                     self.facets.push((*f).clone());
                     remove_these.insert(f);
@@ -208,11 +209,10 @@ impl SimplicialComplex {
                     done = false;
 
                     n += 1;
+                    pb.set_message(
+                        format!["{}", update_style().apply_to(format!["Found {n} facets"])]
+                    );
                 }
-                pb.inc(1);
-                pb.set_message(
-                    format!["{}", update_style().apply_to(format!["Found {n} facets"])]
-                );
             }
 
             remainder.retain(|s| !remove_these.contains(s));
@@ -331,10 +331,14 @@ impl SimplicialComplex {
 
         // Parallelize this
         for entry in edges {
+            pb.inc(1);
+
             let old = entry.0;
             let adj_edges = entry.1;
 
             for &new in &adj_edges {
+
+
                 let o_s = Simplex::from([old]);
                 let n_s = Simplex::from([new]);
                 let e_s = Simplex::from([old, new]);
@@ -344,7 +348,6 @@ impl SimplicialComplex {
                 let n_link = &triple[1];
                 let mut e_link = triple[2].clone();
                 let intersection = o_link & n_link;
-
                 if e_link.is_deformation_retract(&intersection) {
                     for facet in &mut self.facets {
                         if facet.remove(&old) {
@@ -356,12 +359,10 @@ impl SimplicialComplex {
                     pb.set_message(
                         format!["{}", update_style().apply_to(format!["Pinched {n} edges"])]
                     );
-                    pb.inc(1);
 
                     pinched = true;
                     break;
                 }
-                pb.inc(1);
             }
         }
         pb.finish();
