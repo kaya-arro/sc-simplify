@@ -4,7 +4,6 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{BitAnd, Default, ProgressBar, update_style, the_sty, HashSet, simplex::Simplex, the_hasher, new_hs, new_v, to_v};
 
 
-
 fn len_sort(vec: &mut Vec<Simplex>) {
     vec.sort_by(|a, b| b.len().cmp(&a.len()));
 }
@@ -255,25 +254,6 @@ impl SimplicialComplex {
     fn is_deformation_retract(&mut self, supercomplex: &Self) -> bool {
         return self.enlarge_in_supercomplex(supercomplex, true).is_empty();
     }
-
-    // fn links(&self, faces: Vec<Simplex>) -> Vec<Self> {
-    //     // let facets_len = self.facets.len();
-    //     // This is kind of an arbitrary guess at the capacity we need. The only upper bound we know
-    //     // for sure is self.facets.len() but that is usually a huge overestimate.
-    //     // let f_len = self.first_len();
-    //     let f_len = self.facets.len();
-    //     let mut link_sets = new_v::<(Simplex, Vec<Simplex>)>(faces.len());
-    //     link_sets.extend(faces.into_iter().map(|f| (f, new_v(f_len))));
-    //     for facet in &self.facets {
-    //         for &mut (ref face, ref mut set) in &mut link_sets {
-    //             if face <= facet {
-    //                 set.push(facet - face);
-    //             }
-    //         }
-    //     }
-    //
-    //     link_sets.into_iter().map(|s| Self{ facets: s.1 }).collect()
-    // }
 
     fn links(&self, faces: Vec<Simplex>) -> Vec<Self> {
         let facets_len = self.facets.len();

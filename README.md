@@ -15,8 +15,8 @@ The program reads its input from `stdin`. Each line is a facet presented as a sp
 Examples:
 
 ```bash
-sc-simplify < my-complex.sc [OPTIONS ... ] > simplified.sc
-sc-factory.sh | sc-simplify [OPTIONS ... ] > simplified.sc
+sc-simplify < my-complex.slcx [OPTIONS ... ] > simplified.slcx
+sc-factory.sh | sc-simplify [OPTIONS ... ] > simplified.slcx
 ```
 
 You can also enter `stdin` by hand, terminating the input with `^D`.
@@ -24,14 +24,14 @@ You can also enter `stdin` by hand, terminating the input with `^D`.
 By the default, the output has the same formatting as the input. Alternatively, the `--xml` flag can be enabled to yield a `.xml` file that can be loaded by GAP's `simpcomp` package with the `SCLoadXML` command:
 
 ```
-$ sc-simplify < my-complex.sc -px > simplified.xml
+$ sc-simplify < my-complex.slcx -px > simplified.xml
 $ gap
 gap> LoadPackage("simpcomp");;
 gap> x := SCLoadXML("simplified.xml");;
 gap> SCHomologyInternal(x);
 ```
 
-If you would like to use the program with `sage`, small scripts for importing and exporting simplicial complexes in `sc-simplify`'s format to and from `sage` are provided in the file `sage/sc_io.sage`.
+If you would like to use the program with Sage, small scripts for importing and exporting simplicial complexes in `sc-simplify`'s format to and from Sage are provided in the file `Python/sc_io.py`.
 
 For further usage details, read the help text: `sc-simplify --help`
 
@@ -39,12 +39,12 @@ For further usage details, read the help text: `sc-simplify --help`
 
 By default, `sc-simplify` takes the Čech nerve of the input iteratively until no more simplifications occur and the dimension of the complex is less than or equal to that of its nerve.
 
-Next, the "pinch" algorithm is applied. This algorithm is the central mathematical contribution of this package. Each edge is evaluated to determine if contracting it would change the homotopy type of the complex, and if not, it is contracted. 
+Next, the "pinch" algorithm is applied. This algorithm is the central mathematical contribution of this package. Each edge is evaluated to determine if contracting it would change the homotopy type of the complex, and if not, it is contracted.
 
-Software like `sage` accelerates homology computations by finding a large contractible subcomplex and calculating relative homology with respect to this subcomplex. Since Rust is faster than Python, `sc-simplify` does this for you automatically by default so that you can use e.g.
+Software like Sage accelerates homology computations by finding a large contractible subcomplex and calculating relative homology with respect to this subcomplex. To save time, `sc-simplify` does this for you automatically so that you can use e.g.
 
 ```python
-sc1, sc2 = read_sc_pair("simplified-pair.sc")
+sc1, sc2 = read_sc_pair("simplified-pair.slcx")
 sc1.homology(subcomplex=sc2, enlarge=False)
 ```
 
@@ -86,23 +86,13 @@ sc1.homology(subcomplex=sc2, enlarge=False)
 
 - [x] Make more tweaks to improve performance.
 
-- [ ] Implement multithreading.
-
-- [ ] Implement a "pair mode" that enlarges a given subcomplex.
-
-- [x] Implement a flag to switch to a slower but more thorough internal contractibility test that could achieve more simplification at the cost of slower run time.
+- [x] Make a progress bar.
 
 - [ ] Include shell scripts to further facilitate interfacing with GAP and Sage.
 
-- [ ] Implement a flag to enable a much slower mode that tries to find a truly minimal version of a complex or pair.
-
-- [ ] Implement a flag to enable a careful mode that prints partial progress while enlarging a subcomplex.
+- [ ] Implement optional multithreading.
 
 - [ ] Include examples in the repository.
-
-- [x] Make a progress bar.
-
-- [ ] The `simplicial_topology` crate implements mod 2 homology for simplicial complexes. Maybe write an interface with that crate.
 
 - [ ] Maybe someday implement integral simplicial homology in Rust.
   

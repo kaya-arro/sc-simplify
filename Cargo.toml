@@ -1,6 +1,6 @@
 [package]
 name = "sc-simplify"
-version = "0.3.1"
+version = "1.0.0"
 authors = ["Kaya Arro"]
 edition = "2024"
 description = "Takes a simplicial complex and returns a smaller complex or pair of the same homotopy type"
@@ -24,7 +24,9 @@ opt-level = 3
 overflow-checks = true
 lto = "fat"
 codegen-units = 1
+
+
+[profile.profiling]
+inherits = "release"
 debug = true
 strip = "none"
-# strip = "symbols"
-# debug = false
