@@ -88,11 +88,11 @@ sc1.homology(subcomplex=sc2, enlarge=False)
 
 - [x] Make a progress bar.
 
-- [ ] Include shell scripts to further facilitate interfacing with GAP and Sage.
-
 - [ ] Implement optional multithreading.
 
 - [ ] Include examples in the repository.
+
+- [ ] Figure out a strategy to remove more excess cells when using `--thorough`.
 
 - [ ] Maybe someday implement integral simplicial homology in Rust.
   

@@ -56,7 +56,6 @@ pub fn sc_info(sc: &SimplicialComplex, name: String) {
 }
 
 
-
 pub fn read_input() -> SimplicialComplex {
     let stdin = stdin();
     let mut lines = stdin.lock().lines();

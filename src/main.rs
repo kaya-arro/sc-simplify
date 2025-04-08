@@ -16,7 +16,7 @@ mod cli;
 use cli::Cli;
 
 mod io;
-use io::{the_sty, update_style, heading_style, sc_info, read_input, write_sc};
+use io::{the_sty, info_number_style, update_style, info_style, heading_style, sc_info, read_input, write_sc};
 
 use rustc_hash::FxBuildHasher;
 use rustc_hash::FxHashSet as HashSet;
@@ -62,24 +62,67 @@ fn main() {
         }
     } else {
         // There is no need to perform checks if we reduce.
-        let n = sc.reduce();
-        if !quiet && n > 0 { sc_info(
-            &sc, format!["After reducing with Čech nerves {} times, the complex", n]
-        ); }
+        let nerve_count = sc.reduce(quiet);
+        if !quiet && nerve_count > 0 {
+            eprint![
+                "{} {} {}",
+                info_style().apply_to("After reducing with Čech nerves"),
+                info_number_style().apply_to(format!["{}", nerve_count]),
+                info_style().apply_to("times, "),
+            ];
+            sc_info(&sc, "the complex".to_string());
+        }
     }
 
     if !quiet { eprintln![]; }
 
-    let mut i = cli.max_pinch_loops;
-    if i > 0 {
-        if !quiet { eprintln!["{}", heading_style().apply_to("Pinching edges:")]; }
-        while i > 0 && sc.pinch(quiet) {
-            i -= 1;
-            sc.relabel_vertices();
+    if cli.thorough {
+        let mut repeat = true;
+        while repeat {
+            repeat = false;
+
+            if !quiet { eprintln!["{}", heading_style().apply_to("Pinching edges:")]; }
+            while sc.pinch(quiet) {
+                repeat = true;
+                sc.relabel_vertices();
+            }
+
+            sc = sc.nerve();
+            if !quiet {
+                eprintln!["\n"];
+                eprintln!["{}", heading_style().apply_to("Pinching edges of Čech nerve:")];
+            }
+            while sc.pinch(quiet) {
+                repeat = true;
+                sc.relabel_vertices();
+            }
+            if !quiet { eprintln!["\n"]; }
+
+            sc = sc.nerve();
         }
+
+        sc.reduce(true);
+        if !quiet { eprintln!["{}", heading_style().apply_to("Collapsing faces:")]; }
+        while sc.collapse(quiet) { }
         if !quiet { eprintln!["\n"]; }
     } else {
-        sc.relabel_vertices();
+        let mut i = cli.max_pinch_loops;
+        if i > 0 {
+            if !quiet { eprintln!["{}", heading_style().apply_to("Pinching edges:")]; }
+            while i > 0 && sc.pinch(quiet) {
+                i -= 1;
+                // The pinch algorithm uses an ordering of the vertices for efficiency. Relabeling the
+                // vertices helps shake things up and allow further pinches.
+                sc.relabel_vertices();
+            }
+            if !cli.skip_collapse {
+                if !quiet { eprintln!["\n\n{}", heading_style().apply_to("Collapsing faces:")]; }
+                while sc.collapse(quiet) { }
+                if !quiet { eprintln!["\n"]; }
+            } else {
+                eprintln!["\n"];
+            }
+        }
     }
 
     if cli.no_pair {

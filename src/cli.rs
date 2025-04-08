@@ -42,6 +42,22 @@ pub struct Cli {
     #[arg(short = 'P', long, default_value_t = 2, value_name = "MAX")]
     pub max_pinch_loops: usize,
 
+    /// Skip collapsing free faces.
+    ///
+    /// Complexes that do not need to be simplified with Čech nerves often also do need benefit
+    /// much from collapsing, so you may wish to use this flag in conjunction with --skip-nerve.
+    #[arg(short = 'C', long, default_value_t = false)]
+    pub skip_collapse: bool,
+
+    /// Spend extra time trying to minimize the number of vertices.
+    ///
+    /// Beware that this flag is inadvisable if your goal is to speed up calculations of homotopy
+    /// invariants. It may be of interest from a combinatorial perspective. Also note that this
+    /// setting minimizes the number of vertices, it often increases the total number of cells in
+    /// the output complex.
+    #[arg(short, long, default_value_t = false)]
+    pub thorough: bool,
+
     /// Only print the simplified input.
     ///
     /// If this flag is enabled, only one complex, equivalent to the input, will be printed.

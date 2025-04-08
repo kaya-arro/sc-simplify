@@ -1,7 +1,8 @@
 use std::cmp::min;
+use std::time::Duration;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::{BitAnd, Default, ProgressBar, update_style, the_sty, HashSet, simplex::Simplex, the_hasher, new_hs, new_v, to_v};
+use crate::{BitAnd, Default, ProgressBar, update_style, info_style, info_number_style, the_sty, HashSet, simplex::Simplex, the_hasher, new_hs, new_v, to_v};
 
 
 fn len_sort(vec: &mut Vec<Simplex>) {
@@ -16,13 +17,13 @@ pub struct SimplicialComplex {
 
 impl Default for SimplicialComplex {
     fn default() -> Self {
-        Self { facets: Vec::from([Simplex::default()]) }
+        Self { facets: vec![Simplex::default()] }
     }
 }
 
 impl From<&Simplex> for SimplicialComplex {
     fn from(simplex: &Simplex) -> Self {
-        Self { facets: Vec::from([simplex.clone()]) }
+        Self { facets: vec![simplex.clone()] }
     }
 }
 
@@ -114,13 +115,30 @@ impl SimplicialComplex {
         Self::from_check(nerve_faces.into_iter().collect())
     }
 
-    pub fn reduce(&mut self) -> u8 {
+    // Take Čech nerves until both the dimension and the number of vertices are minimized.
+    pub fn reduce(&mut self, quiet: bool) -> u8 {
+        let mut n = 0u8;
+        let pb: ProgressBar;
+        if quiet {
+            pb = ProgressBar::hidden();
+        } else {
+            pb = ProgressBar::new_spinner();
+            pb.enable_steady_tick(Duration::from_millis(100));
+            pb.set_message(
+                format![
+                    "{} {} {}",
+                    info_style().apply_to("Simplified with Čech nerves"),
+                    info_number_style().apply_to(format!["{}", n]),
+                    info_style().apply_to("times."),
+                ]
+            );
+        }
+
         let mut base_vertex_count = self.vertex_set().len();
         if base_vertex_count == 0 {
             return 0;
         }
         let mut nerve = self.nerve();
-        let mut n = 0u8;
         while (n % 2 == 0
             && (nerve.first_len() < self.first_len() || nerve.facets.len() < base_vertex_count))
             || (n % 2 != 0
@@ -137,6 +155,7 @@ impl SimplicialComplex {
         if n % 2 != 0 {
             *self = nerve;
         }
+        pb.finish_and_clear();
 
         n
     }
@@ -343,11 +362,15 @@ impl SimplicialComplex {
 
             for &new in &adj_edges {
 
-                let o_s = Simplex::from([old]);
-                let n_s = Simplex::from([new]);
-                let e_s = Simplex::from([old, new]);
+                // let o_s = Simplex::from([old]);
+                // let n_s = Simplex::from([new]);
+                // let e_s = Simplex::from([old, new]);
 
-                let triple = self.links(Vec::from([o_s, n_s, e_s]));
+                let triple = self.links(vec![
+                    Simplex::from([old]),
+                    Simplex::from([new]),
+                    Simplex::from([old, new]),
+                ]);
                 let o_link = &triple[0];
                 let n_link = &triple[1];
                 let mut e_link = triple[2].clone();
@@ -375,8 +398,55 @@ impl SimplicialComplex {
         pinched
     }
 
+    pub fn collapse(&mut self, quiet: bool) -> bool {
+        let mut collapsed = false;
+        let facets = &self.facets;
+        let mut active_faces = new_hs::<Simplex>(facets.len());
+        for facet in facets {
+            active_faces.extend(facet.faces());
+        }
+        // let p_len = active_faces.len();
+        let p_len = facets.len();
+
+        let mut n = 0u32;
+        let pb: ProgressBar;
+        if quiet {
+            pb = ProgressBar::hidden();
+        } else {
+            pb = ProgressBar::new(p_len as u64);
+            pb.set_style(the_sty());
+            pb.set_message(
+                format!["{}", update_style().apply_to(format!["Collapsed {n} faces"])]
+            );
+        }
+
+        for facet in facets.clone() {
+            pb.inc(1);
+            if !self.facets.contains(&facet) { continue; }
+            for face in facet.faces() {
+                if self.links(vec![face.clone()])[0].is_contractible() {
+                    active_faces.remove(&face);
+                    self.facets.retain(|f| !(*f <= facet));
+                    self.facets.extend(facet.faces().into_iter().filter(|f| *f != face));
+                    *self = Self::from_check(self.facets.clone());
+
+                    collapsed = true;
+                    n += 1;
+                    pb.set_message(
+                        format!["{}", update_style().apply_to(format!["Collapsed {n} faces"])]
+                    );
+
+                    break;
+                }
+            }
+        }
+        pb.finish();
+
+        collapsed
+    }
+
     fn first_facet_to_complex(&self) -> Self {
-        Self { facets: Vec::from([self.facets[0].clone()]) }
+        Self { facets: vec![self.facets[0].clone()] }
     }
 
     pub fn contractible_subcomplex(&self, quiet: bool) -> Self {
