@@ -5,18 +5,19 @@ use std::ops::{BitOr, Sub};
 use std::hash::{Hash, Hasher};
 
 
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Simplex(pub HashSet<u32>);
 
+
 impl Default for Simplex {
-    #[inline]
     fn default() -> Self {
         Self(HashSet::with_hasher(the_hasher()))
     }
 }
 
+
 impl Hash for Simplex {
-    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.iter().collect::<BTreeSet<&u32>>().hash(state);
     }
@@ -37,86 +38,88 @@ impl PartialOrd for Simplex {
     }
 }
 
+
 impl BitAnd for &Simplex {
     type Output = Simplex;
 
-    #[inline]
     fn bitand(self, rhs: &Simplex) -> Simplex {
         Simplex(&self.0 & &rhs.0)
     }
 }
 
+
 impl BitOr for &Simplex {
     type Output = Simplex;
 
-    #[inline]
     fn bitor(self, rhs: &Simplex) -> Simplex {
         Simplex(&self.0 | &rhs.0)
     }
 }
 
+
 impl Sub for &Simplex {
     type Output = Simplex;
 
-    #[inline]
     fn sub(self, rhs: &Simplex) -> Simplex {
         Simplex(&self.0 - &rhs.0)
     }
 }
 
+
 impl<T: IntoIterator<Item = u32>> From<T> for Simplex {
-    #[inline]
     fn from(col: T) -> Self {
         Self(col.into_iter().collect())
     }
 }
 
+
 impl Simplex {
 
-    #[inline]
     pub fn contains(&self, item: &u32) -> bool {
         self.0.contains(item)
     }
 
-    #[inline]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    #[inline]
     pub fn is_disjoint(&self, other: &Simplex) -> bool {
         self.0.is_disjoint(&other.0)
     }
 
-    #[inline]
     pub fn insert(&mut self, item: &u32) -> bool {
         self.0.insert(*item)
     }
 
-    #[inline]
     pub fn remove(&mut self, item: &u32) -> bool {
         self.0.remove(item)
     }
 
-    #[inline]
     pub fn intersection(&self, rhs: &Self) -> Self {
         Self(&self.0 & &rhs.0)
     }
+
+    pub fn faces(&self) -> Vec<Self> {
+        self.0.iter().map(|v| Simplex(
+            self.0.clone().into_iter().filter(|u| u != v).collect()
+        )).collect()
+    }
 }
+
 
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct PrettySimplex(Vec<u32>);
 
-impl PrettySimplex {
 
+impl PrettySimplex {
     pub fn print(&self, d: usize) {
         let mut vec_str = new_v::<String>(self.0.len());
         vec_str.extend(self.0.iter().map(|v| format!("{:>d$}", v)));
         println!("{}", vec_str.join(" "))
     }
-
 }
+
 
 impl From<&Simplex> for PrettySimplex {
     fn from (simp: &Simplex) -> Self {
@@ -125,6 +128,7 @@ impl From<&Simplex> for PrettySimplex {
         Self(verts)
     }
 }
+
 
 impl PartialOrd for PrettySimplex {
     fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
@@ -144,6 +148,7 @@ impl PartialOrd for PrettySimplex {
         Some(Ordering::Equal)
     }
 }
+
 
 impl Ord for PrettySimplex {
     fn cmp(&self, rhs: &Self) -> Ordering {

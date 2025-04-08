@@ -5,7 +5,7 @@ use console::Style;
 
 use crate::{HashSet, new_v, SimplicialComplex, Simplex, PrettySimplex};
 
-#[inline]
+
 pub fn the_sty() -> ProgressStyle {
     ProgressStyle::with_template(
         "[{elapsed_precise}]  {msg:<24} [{bar:50}] {pos:>7}/{len:<7} {eta:>5} left"
@@ -15,36 +15,36 @@ pub fn the_sty() -> ProgressStyle {
 }
 
 
-#[inline]
+
 pub fn heading_style() -> Style {
     let sty = Style::new().for_stderr().cyan().bold();
 
     sty
 }
 
-#[inline]
+
 pub fn update_style() -> Style {
     let sty = Style::new().for_stderr().cyan().bright();
 
     sty
 }
 
-#[inline]
+
 pub fn info_style() -> Style {
     let sty = Style::new().for_stderr().white().italic();
 
     sty
 }
 
-#[inline]
+
 pub fn info_number_style() -> Style {
     let sty = Style::new().for_stderr().yellow().bright();
 
     sty
 }
 
-#[inline]
-pub fn sc_info(sc: &SimplicialComplex, name: &str) {
+
+pub fn sc_info(sc: &SimplicialComplex, name: String) {
     eprintln![
         "{} {} {} {} {}",
         info_style().apply_to(format!["{name} contains"]),
@@ -56,7 +56,7 @@ pub fn sc_info(sc: &SimplicialComplex, name: &str) {
 }
 
 
-#[inline]
+
 pub fn read_input() -> SimplicialComplex {
     let stdin = stdin();
     let mut lines = stdin.lock().lines();

@@ -3,10 +3,12 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{BitAnd, Default, ProgressBar, update_style, the_sty, HashSet, simplex::Simplex, the_hasher, new_hs, new_v, to_v};
 
-#[inline]
+
+
 fn len_sort(vec: &mut Vec<Simplex>) {
     vec.sort_by(|a, b| b.len().cmp(&a.len()));
 }
+
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SimplicialComplex {
@@ -20,16 +22,21 @@ impl Default for SimplicialComplex {
 }
 
 impl From<&Simplex> for SimplicialComplex {
-    #[inline]
     fn from(simplex: &Simplex) -> Self {
         Self { facets: Vec::from([simplex.clone()]) }
+    }
+}
+
+impl From<Vec<Simplex>> for SimplicialComplex {
+    fn from(mut facets: Vec<Simplex>) -> Self {
+        facets.select_nth_unstable_by_key(0, Simplex::len);
+        Self { facets }
     }
 }
 
 impl BitAnd for &SimplicialComplex {
     type Output = SimplicialComplex;
 
-    #[inline]
     fn bitand(self, rhs: Self) -> SimplicialComplex {
         self.intersection_with_complex(rhs)
     }
@@ -44,7 +51,9 @@ impl SimplicialComplex {
                 len_sort(&mut faces);
                 let mut facets = new_v::<Simplex>(faces.len());
                 for old_facet in faces {
-                    if !facets.iter().any(|new_facet| old_facet <= *new_facet) {
+                    if !facets.iter().any(
+                        |new_facet| old_facet <= *new_facet
+                    ) {
                         facets.push(old_facet);
                     }
                 }
@@ -55,8 +64,6 @@ impl SimplicialComplex {
         }
     }
 
-
-    #[inline]
     pub fn first_len(&self) -> usize {
         return self.facets[0].len();
     }
@@ -71,70 +78,70 @@ impl SimplicialComplex {
         vertex_set
     }
 
-    #[inline]
     fn intersection_with_simplex(&self, other: &Simplex) -> Self {
-        let mut int_faces = new_v::<Simplex>(self.facets.len());
+        let mut int_faces = new_hs::<Simplex>(self.facets.len());
         int_faces.extend(self.facets.iter().map(|f| f & other));
 
-        Self::from_check(int_faces)
+        Self::from_check(int_faces.into_iter().collect())
     }
 
     fn intersection_with_complex(&self, other: &Self) -> Self {
         let mut int_faces = new_hs::<Simplex>(min(self.facets.len(), other.facets.len()));
         for facet in &self.facets {
             for other_facet in &other.facets {
-                int_faces.insert(facet & other_facet);
+                if !facet.0.is_disjoint(&other_facet.0) {
+                    int_faces.insert(facet & other_facet);
+                }
             }
         }
-        int_faces.shrink_to_fit();
 
         Self::from_check(int_faces.into_iter().collect())
     }
 
-    fn nerve(&self) -> Self {
+    pub fn nerve(&self) -> Self {
         let vertex_set = self.vertex_set();
         let facet_count = self.facets.len();
 
-        let mut nerve_faces = new_v::<Simplex>(vertex_set.len());
+        let mut nerve_faces = new_hs::<Simplex>(vertex_set.len());
         for v in vertex_set {
             let mut nerve_simp_verts = new_hs::<u32>(facet_count);
             nerve_simp_verts.extend(
                 (0..facet_count).filter(|i| self.facets[*i].contains(&v)).map(|i| i as u32)
             );
             nerve_simp_verts.shrink_to_fit();
-            nerve_faces.push(Simplex(nerve_simp_verts));
+            nerve_faces.insert(Simplex(nerve_simp_verts));
         }
 
-        Self::from_check(nerve_faces)
+        Self::from_check(nerve_faces.into_iter().collect())
     }
 
-    #[inline]
-    pub fn reduce(&mut self) {
-        let mut return_base = true;
+    pub fn reduce(&mut self) -> u8 {
         let mut base_vertex_count = self.vertex_set().len();
         if base_vertex_count == 0 {
-            return;
+            return 0;
         }
         let mut nerve = self.nerve();
-        while (return_base
+        let mut n = 0u8;
+        while (n % 2 == 0
             && (nerve.first_len() < self.first_len() || nerve.facets.len() < base_vertex_count))
-            || (!return_base
+            || (n % 2 != 0
                 && (nerve.first_len() > self.first_len() || nerve.facets.len() > base_vertex_count))
         {
-            if return_base {
+            if n % 2 == 0 {
                 *self = nerve.nerve();
                 base_vertex_count = self.vertex_set().len();
             } else {
                 nerve = self.nerve();
             }
-            return_base = !return_base;
+            n += 1;
         }
-        if !return_base {
+        if n % 2 != 0 {
             *self = nerve;
         }
+
+        n
     }
 
-    #[inline]
     fn is_contractible(&self) -> bool {
         if self.first_len() == 0 {
             return false;
@@ -174,8 +181,14 @@ impl SimplicialComplex {
         }
     }
 
-    #[inline]
     fn enlarge_in_supercomplex(&mut self, supercomplex: &Self, quiet: bool) -> Vec<Simplex> {
+        let check: bool;
+        if !self.facets.iter().all(|f| supercomplex.facets.contains(f)) {
+            check = true;
+        } else {
+            check = false;
+        }
+
         let mut remainder = new_v::<&Simplex>(supercomplex.facets.len());
         remainder.extend(supercomplex.facets.iter().filter(|f| !self.facets.contains(f)));
         remainder.shrink_to_fit();
@@ -185,7 +198,7 @@ impl SimplicialComplex {
         while !done {
             done = true;
 
-            let mut n = self.facets.len();
+            let mut n = 0;
 
             let r_len = remainder.len();
             let pb: ProgressBar;
@@ -195,11 +208,10 @@ impl SimplicialComplex {
                 pb = ProgressBar::new(r_len as u64);
                 pb.set_style(the_sty());
                 pb.set_message(
-                    format!["{}", update_style().apply_to(format!["Found {n} facets"])]
+                    format!["{}", update_style().apply_to(format!["Added {n} facets"])]
                 );
             }
 
-            // Parallelize this
             for f in &remainder {
                 pb.inc(1);
                 if self.intersection_with_simplex(f).is_contractible() {
@@ -210,7 +222,7 @@ impl SimplicialComplex {
 
                     n += 1;
                     pb.set_message(
-                        format!["{}", update_style().apply_to(format!["Found {n} facets"])]
+                        format!["{}", update_style().apply_to(format!["Added {n} facets"])]
                     );
                 }
             }
@@ -232,17 +244,37 @@ impl SimplicialComplex {
         }
         facets.shrink_to_fit();
 
-        *self = Self { facets };
+        if check {
+            *self = Self::from_check(facets);
+        } else {
+            *self = Self { facets };
+        }
         return remainder.into_iter().map(|f| f.clone()).collect();
     }
 
-    #[inline]
     fn is_deformation_retract(&mut self, supercomplex: &Self) -> bool {
         return self.enlarge_in_supercomplex(supercomplex, true).is_empty();
     }
 
-    #[inline]
-    // I should just make this take a Vec<Simplex> as input
+    // fn links(&self, faces: Vec<Simplex>) -> Vec<Self> {
+    //     // let facets_len = self.facets.len();
+    //     // This is kind of an arbitrary guess at the capacity we need. The only upper bound we know
+    //     // for sure is self.facets.len() but that is usually a huge overestimate.
+    //     // let f_len = self.first_len();
+    //     let f_len = self.facets.len();
+    //     let mut link_sets = new_v::<(Simplex, Vec<Simplex>)>(faces.len());
+    //     link_sets.extend(faces.into_iter().map(|f| (f, new_v(f_len))));
+    //     for facet in &self.facets {
+    //         for &mut (ref face, ref mut set) in &mut link_sets {
+    //             if face <= facet {
+    //                 set.push(facet - face);
+    //             }
+    //         }
+    //     }
+    //
+    //     link_sets.into_iter().map(|s| Self{ facets: s.1 }).collect()
+    // }
+
     fn links(&self, faces: Vec<Simplex>) -> Vec<Self> {
         let facets_len = self.facets.len();
         let mut link_sets = new_v::<(Simplex, HashSet<Simplex>)>(faces.len());
@@ -255,14 +287,9 @@ impl SimplicialComplex {
             }
         }
 
-        for (_, set) in &mut link_sets {
-            set.shrink_to_fit();
-        }
-
-        link_sets.into_iter().map(|s| Self::from_check(s.1.into_iter().collect())).collect()
+        link_sets.into_iter().map(|s| Self { facets: s.1.into_iter().collect() } ).collect()
     }
 
-    #[inline]
     // Returns vec holding (v, s) where v is a vertex and s is vec of edges less than v connected
     // to v.
     fn edge_table(&self) -> Vec<(u32,Vec<u32>)> {
@@ -282,10 +309,9 @@ impl SimplicialComplex {
         let mut edges_map = HashMap::<u32, HashSet<u32>>::with_capacity_and_hasher(
             vert_count, the_hasher()
         );
-        let an_edge_set = new_hs::<u32>(first_len);
 
         for v in &vertex_vec {
-            edges_map.insert(*v, an_edge_set.clone());
+            edges_map.insert(*v, new_hs::<u32>(first_len));
         }
 
         for facet in &self.facets {
@@ -329,7 +355,6 @@ impl SimplicialComplex {
             );
         }
 
-        // Parallelize this
         for entry in edges {
             pb.inc(1);
 
@@ -337,7 +362,6 @@ impl SimplicialComplex {
             let adj_edges = entry.1;
 
             for &new in &adj_edges {
-
 
                 let o_s = Simplex::from([old]);
                 let n_s = Simplex::from([new]);
@@ -371,12 +395,10 @@ impl SimplicialComplex {
         pinched
     }
 
-    #[inline]
     fn first_facet_to_complex(&self) -> Self {
         Self { facets: Vec::from([self.facets[0].clone()]) }
     }
 
-    #[inline]
     pub fn contractible_subcomplex(&self, quiet: bool) -> Self {
         let mut contractible = self.first_facet_to_complex();
         contractible.enlarge_in_supercomplex(self, quiet);
@@ -384,7 +406,6 @@ impl SimplicialComplex {
         contractible
     }
 
-    #[inline]
     pub fn relabel_vertices(&mut self) {
         let vertex_set = self.vertex_set();
         let mut vertex_dict: HashMap<u32, u32> =
