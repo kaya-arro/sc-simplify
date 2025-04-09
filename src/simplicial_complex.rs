@@ -31,7 +31,7 @@ impl From<&Simplex> for SimplicialComplex {
 
 impl From<Vec<Simplex>> for SimplicialComplex {
     fn from(mut facets: Vec<Simplex>) -> Self {
-        facets.select_nth_unstable_by_key(0, Simplex::len);
+        facets.select_nth_stable_by_key(0, Simplex::len);
         Self { facets }
     }
 }
@@ -67,7 +67,7 @@ impl SimplicialComplex {
     }
 
     pub fn first_len(&self) -> usize {
-        return self.facets[0].len();
+        self.facets[0].len()
     }
 
     pub fn vertex_set(&self) -> HashSet<u32> {
