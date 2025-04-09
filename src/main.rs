@@ -111,10 +111,12 @@ fn main() {
                 // vertices helps shake things up and allow further pinches.
                 sc.relabel_vertices();
             }
-            if !cli.skip_collapse {
-                if !quiet { eprintln!["\n\n{}", heading_style().apply_to("Collapsing faces:")]; }
-                while sc.collapse(quiet) { }
-            }
+            if !quiet { eprintln!["\n"] }
+        }
+        if !cli.skip_collapse {
+            if !quiet { eprintln!["{}", heading_style().apply_to("Collapsing faces:")]; }
+            while sc.collapse(quiet) { }
+            if !quiet { eprintln!["\n"] }
         }
     }
 
@@ -127,7 +129,7 @@ fn main() {
         let mut contractible = SimplicialComplex::default();
         if sc.first_len() > 0 {
             if !quiet {
-                eprintln!["\n\n{}", heading_style().apply_to("Accreting subcomplex:")];
+                eprintln!["{}", heading_style().apply_to("Accreting subcomplex:")];
             }
 
             contractible = sc.contractible_subcomplex(quiet);
