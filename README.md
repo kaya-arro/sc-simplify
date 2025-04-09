@@ -111,7 +111,7 @@ I do not currently have plans to extend this package into something more ambitio
 
 # Acknowledgements
 
-The [`enlarge_in_supercomplex`]([sc-simplify/src/simplicial_complex.rs at 18f794887aeee89266d0038d1942aaa945ec8938 · kaya-arro/sc-simplify · GitHub](https://github.com/kaya-arro/sc-simplify/blob/18f794887aeee89266d0038d1942aaa945ec8938/src/simplicial_complex.rs#L170)) method in this program is largely ported from the [`_enarlge_subcomplex`]([sage/src/sage/topology/simplicial_complex.py at 871ba9daed15374d6b2ff1c533970f44b70f21e9 · sagemath/sage · GitHub](https://github.com/sagemath/sage/blob/871ba9daed15374d6b2ff1c533970f44b70f21e9/src/sage/topology/simplicial_complex.py#L3901)) method used by Sage and written by John Palmieri.
+The [`enlarge_in_supercomplex`](https://github.com/kaya-arro/sc-simplify/blob/18f794887aeee89266d0038d1942aaa945ec8938/src/simplicial_complex.rs#L170) method in this program is largely ported from the [`_enarlge_subcomplex`](https://github.com/sagemath/sage/blob/871ba9daed15374d6b2ff1c533970f44b70f21e9/src/sage/topology/simplicial_complex.py#L3901) method used by Sage and written by John Palmieri.
 
 # License
 
