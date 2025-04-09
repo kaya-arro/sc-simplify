@@ -1,6 +1,6 @@
 [package]
 name = "sc-simplify"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Kaya Arro"]
 edition = "2024"
 description = "Takes a simplicial complex and returns a smaller complex or pair of the same homotopy type"
@@ -9,7 +9,6 @@ description = "Takes a simplicial complex and returns a smaller complex or pair 
 [dependencies]
 clap = { version = "4.5.34", features = ["cargo", "derive", "wrap_help"] }
 console = "0.15.11"
-derive = "1.1.0"
 indicatif = "0.17.11"
 rustc-hash = "2.1.1"
 

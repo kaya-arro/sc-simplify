@@ -2,7 +2,7 @@ use crate::Parser;
 
 #[derive(Parser)]
 #[command(version)]
-/// Read a non-empty complex from stdin and print an equivalent simplified complex or pair.
+/// Read a simplicial complex from stdin and print an equivalent simplified complex or pair.
 ///
 /// Each line of the input is one facet, represented as a space-separated list of vertices.
 /// The vertices should be labeled by natural numbers less than 2^32.

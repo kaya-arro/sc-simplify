@@ -6,6 +6,7 @@ use console::Style;
 use crate::{HashSet, new_v, SimplicialComplex, Simplex, PrettySimplex};
 
 
+// A template for indicatif progress bars
 pub fn the_sty() -> ProgressStyle {
     ProgressStyle::with_template(
         "[{elapsed_precise}]  {msg:<24} [{bar:50}] {pos:>7}/{len:<7} {eta:>5} left"
@@ -15,13 +16,12 @@ pub fn the_sty() -> ProgressStyle {
 }
 
 
-
+// Text styles for console output
 pub fn heading_style() -> Style {
     let sty = Style::new().for_stderr().cyan().bold();
 
     sty
 }
-
 
 pub fn update_style() -> Style {
     let sty = Style::new().for_stderr().cyan().bright();
@@ -29,13 +29,11 @@ pub fn update_style() -> Style {
     sty
 }
 
-
 pub fn info_style() -> Style {
     let sty = Style::new().for_stderr().white().italic();
 
     sty
 }
-
 
 pub fn info_number_style() -> Style {
     let sty = Style::new().for_stderr().yellow().bright();
@@ -44,6 +42,7 @@ pub fn info_number_style() -> Style {
 }
 
 
+// Print formatted text to the console about the number of vertices and facets of a complex.
 pub fn sc_info(sc: &SimplicialComplex, name: String) {
     eprintln![
         "{} {} {} {} {}",

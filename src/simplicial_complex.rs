@@ -2,8 +2,10 @@ use std::cmp::min;
 use std::time::Duration;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::{BitAnd, Default, ProgressBar, update_style, info_style, info_number_style, the_sty, HashSet, simplex::Simplex, the_hasher, new_hs, new_v, to_v};
-
+use crate::{BitAnd, Default};
+use crate::{ProgressBar, update_style, info_style, info_number_style, the_sty};
+use crate::{HashSet, the_hasher, new_hs, new_v, to_v};
+use crate::Simplex;
 
 fn len_sort(vec: &mut Vec<Simplex>) {
     vec.sort_by(|a, b| b.len().cmp(&a.len()));
@@ -116,8 +118,8 @@ impl SimplicialComplex {
     }
 
     // Take Čech nerves until both the dimension and the number of vertices are minimized.
-    pub fn reduce(&mut self, quiet: bool) -> u8 {
-        let mut n = 0u8;
+    pub fn reduce(&mut self, quiet: bool) -> usize {
+        let mut n = 0usize;
         let pb: ProgressBar;
         if quiet {
             pb = ProgressBar::hidden();
@@ -360,11 +362,7 @@ impl SimplicialComplex {
             let old = entry.0;
             let adj_edges = entry.1;
 
-            for &new in &adj_edges {
-
-                // let o_s = Simplex::from([old]);
-                // let n_s = Simplex::from([new]);
-                // let e_s = Simplex::from([old, new]);
+            for new in adj_edges {
 
                 let triple = self.links(vec![
                     Simplex::from([old]),
@@ -398,14 +396,10 @@ impl SimplicialComplex {
         pinched
     }
 
+    // To do: write a version that collapses smaller cells too, not just codimension 1 faces.
     pub fn collapse(&mut self, quiet: bool) -> bool {
         let mut collapsed = false;
         let facets = &self.facets;
-        let mut active_faces = new_hs::<Simplex>(facets.len());
-        for facet in facets {
-            active_faces.extend(facet.faces());
-        }
-        // let p_len = active_faces.len();
         let p_len = facets.len();
 
         let mut n = 0u32;
@@ -424,8 +418,10 @@ impl SimplicialComplex {
             pb.inc(1);
             if !self.facets.contains(&facet) { continue; }
             for face in facet.faces() {
+                // When working with a codimension 1 face, it isn't really necessary to calculate
+                // the link, but this code will make the method more extensible to smaller cells
+                // down the line.
                 if self.links(vec![face.clone()])[0].is_contractible() {
-                    active_faces.remove(&face);
                     self.facets.retain(|f| !(*f <= facet));
                     self.facets.extend(facet.faces().into_iter().filter(|f| *f != face));
                     *self = Self::from_check(self.facets.clone());

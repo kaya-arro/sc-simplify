@@ -5,7 +5,6 @@ use std::ops::{BitOr, Sub};
 use std::hash::{Hash, Hasher};
 
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Simplex(pub HashSet<u32>);
 
@@ -107,7 +106,6 @@ impl Simplex {
 }
 
 
-
 #[derive(Clone, PartialEq, Eq)]
 pub struct PrettySimplex(Vec<u32>);
 
@@ -124,7 +122,7 @@ impl PrettySimplex {
 impl From<&Simplex> for PrettySimplex {
     fn from (simp: &Simplex) -> Self {
         let mut verts: Vec<u32> = simp.0.iter().map(|v| *v).collect();
-        verts.sort_by(|a, b| b.cmp(a));
+        verts.sort_unstable_by(|a, b| b.cmp(a));
         Self(verts)
     }
 }

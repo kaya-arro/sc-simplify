@@ -6,11 +6,9 @@ The primary motivation is to accelerate homology computations for highly non-min
 
 The default behavior prints a pair X, C of simplicial complexes in the same format as the input in which X has the homotopy type of the input and C is a large contractible subcomplex of X. The complexes X and C are delineated by a blank line.
 
- The `--no-pair` flag causes the program to skip calculating a contractible subcomplex.
-
 # Usage
 
-The program reads its input from `stdin`. Each line is a facet presented as a space-separated list of vertices labeled by natural numbers less than 2<sup>32</sup>.
+The program reads its input from `stdin`. Each line is a facet presented as a space-separated list of vertices labeled by natural numbers less than 2<sup>32</sup>. The program is tolerant of excess whitespace, but if non-maximal faces are included in the input, you should enable the `--check-input` flag.
 
 Examples:
 
@@ -31,22 +29,26 @@ gap> x := SCLoadXML("simplified.xml");;
 gap> SCHomologyInternal(x);
 ```
 
-If you would like to use the program with Sage, small scripts for importing and exporting simplicial complexes in `sc-simplify`'s format to and from Sage are provided in the file `Python/sc_io.py`.
+If you would like to use the program with Sage, small scripts for importing and exporting simplicial complexes in `sc-simplify`'s format to and from Sage are provided in the file `Python/sc_io.py`. For example, the `read_sc_pair` script can be used like so:
 
-For further usage details, read the help text: `sc-simplify --help`
+```python
+X, C = read_sc_pair("simplified-pair.slcx")
+X.homology(subcomplex=C, enlarge=False, base_ring=QQ)
+```
+
+For further usage details, see the help text: `sc-simplify --help`
 
 # Algorithm
 
-By default, `sc-simplify` takes the Čech nerve of the input iteratively until no more simplifications occur and the dimension of the complex is less than or equal to that of its nerve.
+The following steps are the default algorithm; they can be adjusted by passing various flags to the program. See `sc-simplify --help` for details.
 
-Next, the "pinch" algorithm is applied. This algorithm is the central mathematical contribution of this package. Each edge is evaluated to determine if contracting it would change the homotopy type of the complex, and if not, it is contracted.
+1. Take the Čech nerve of the input iteratively until no more simplifications occur and the dimension of the complex is less than or equal to that of its nerve.
 
-Software like Sage accelerates homology computations by finding a large contractible subcomplex and calculating relative homology with respect to this subcomplex. To save time, `sc-simplify` does this for you automatically so that you can use e.g.
+2. Identify edges that can be contracted without changing the homotopy type of the complex and contract them.
 
-```python
-sc1, sc2 = read_sc_pair("simplified-pair.slcx")
-sc1.homology(subcomplex=sc2, enlarge=False)
-```
+3. Identify collapsible faces and collapse them.
+
+4. Construct a large contractible subcomplex.
 
 # Installation
 
@@ -64,7 +66,7 @@ sc1.homology(subcomplex=sc2, enlarge=False)
 
 4. Execute `cargo build -r` in the root directory of the repository.
 
-5. Optional: Copy or link `sc-simplify.1.gz` into `/usr/share/man/man1/` so that `man sc-simplify` brings up the manual (see below for how to do this from the terminal).
+5. Optional: copy or link `sc-simplify.1.gz` into `/usr/share/man/man1/` so that `man sc-simplify` brings up the manual (see below for how to do this from the terminal).
 
 6. The binary can be found at `target/release/sc-simplify`. Link to it from your `PATH` with
    
@@ -88,15 +90,24 @@ sc1.homology(subcomplex=sc2, enlarge=False)
 
 - [x] Make a progress bar.
 
-- [ ] Implement optional multithreading.
+- [ ] Improve the documentation of individual methods and publish the crate as a library on crates.io.
 
 - [ ] Include examples in the repository.
 
-- [ ] Figure out a strategy to remove more excess cells when using `--thorough`.
+- [ ] Remove more excess cells created by `--thorough` by applying the collapse algorithm to cells of greater codimension.
 
-- [ ] Maybe someday implement integral simplicial homology in Rust.
+- [ ] Maybe someday implement integral simplicial homology in Rust??
   
   - It would be quite a while before I would have time to get to this.
+  - Sage is pretty quick if you take coefficients in a field. Integral homology is much slower.
+
+# Limitations
+
+This package is not intended to be a general toolkit for working with simplicial complexes in Rust. It is focused on the single goal of filling what I perceived as a gap in the functionality of available software: efficiently reducing complexes to accelerate calculations of homotopy invariants (the functionality of the `--thorough` flag is the one expection to this).
+
+Other tools exist for more general manipulations of simplicial complexes. A highly non-exhausitive list of these includes the `simplicial_topology` Rust crate, the `simpcomp` GAP package, and the `sage.topology.simplicial_complex` Sage/Python module.
+
+I do not currently have plans to extend this package into something more ambitious, but I am open to feature requests that generally align with this package's aim of accelerating the computation of homotopy invariants and which are not implemented in other software.
 
 # Acknowledgements
 

@@ -9,22 +9,18 @@ mod simplicial_complex;
 use simplicial_complex::SimplicialComplex;
 
 use clap::Parser;
-
-use indicatif::ProgressBar;
-
 mod cli;
 use cli::Cli;
 
+use indicatif::ProgressBar;
 mod io;
 use io::{the_sty, info_number_style, update_style, info_style, heading_style, sc_info, read_input, write_sc};
 
 use rustc_hash::FxBuildHasher;
 use rustc_hash::FxHashSet as HashSet;
-
 fn the_hasher() -> FxBuildHasher {
     FxBuildHasher::default()
 }
-
 
 fn new_hs<T>(len: usize) -> HashSet<T> {
     HashSet::with_capacity_and_hasher(len, the_hasher())
@@ -35,10 +31,10 @@ fn new_v<T>(len: usize) -> Vec<T> {
     Vec::<T>::with_capacity(len)
 }
 
-
 fn to_v<T: Copy>(s: &HashSet<T>) -> Vec<T> {
     let mut v = new_v::<T>(s.len());
     v.extend(s);
+
     v
 }
 
@@ -118,9 +114,6 @@ fn main() {
             if !cli.skip_collapse {
                 if !quiet { eprintln!["\n\n{}", heading_style().apply_to("Collapsing faces:")]; }
                 while sc.collapse(quiet) { }
-                if !quiet { eprintln!["\n"]; }
-            } else {
-                eprintln!["\n"];
             }
         }
     }
@@ -129,21 +122,28 @@ fn main() {
         write_sc(&sc, xml);
         if !quiet { sc_info(&sc, "The simplified complex".to_string()); }
     } else {
-        if !quiet {
-            eprintln!["{}", heading_style().apply_to("Accreting subcomplex:")];
-        }
-
-        let contractible = sc.contractible_subcomplex(quiet);
-
         write_sc(&sc, xml);
-        println![];
-        write_sc(&contractible, xml);
+
+        let mut contractible = SimplicialComplex::default();
+        if sc.first_len() > 0 {
+            if !quiet {
+                eprintln!["\n\n{}", heading_style().apply_to("Accreting subcomplex:")];
+            }
+
+            contractible = sc.contractible_subcomplex(quiet);
+
+            println![];
+            write_sc(&contractible, xml);
+        }
 
         if !quiet {
             eprintln!["\n"];
             sc_info(&sc, "The simplified complex".to_string());
-            sc_info(&contractible, "The contractible subcomplex".to_string());
+            if sc.first_len() > 0 {
+                sc_info(&contractible, "The contractible subcomplex".to_string());
+            } else {
+                eprintln!["{}", info_style().apply_to("The empty complex contains no contractible subcomplex.")]
+            }
         }
     }
-
 }
