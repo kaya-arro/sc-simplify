@@ -71,13 +71,13 @@ The following steps are the default algorithm; they can be adjusted by passing v
 6. The binary can be found at `target/release/sc-simplify`. Link to it from your `PATH` with
    
    ```bash
-   sudo ln -s $(pwd)/target/release/sc-simplify /usr/bin/
+   sudo ln -s $(pwd)/target/release/sc-simplify /usr/local/bin/
    ```
    
    If you plan to delete or move `target/release/sc-simplify`, make a hardlink by omitting the `-s` flag or copy the binary with
    
    ```bash
-   sudo cp $(pwd)/target/release/sc-simplify /usr/bin/
+   sudo cp $(pwd)/target/release/sc-simplify /usr/local/bin/
    ```
    
    or generally do whatever you want with the binary: it's yours!
