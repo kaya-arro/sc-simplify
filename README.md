@@ -19,7 +19,7 @@ sc-factory.sh | sc-simplify [OPTIONS ... ] > simplified.slcx
 
 You can also enter `stdin` by hand, terminating the input with `^D`.
 
-By the default, the output has the same formatting as the input. Alternatively, the `--xml` flag can be enabled to yield a `.xml` file that can be loaded by GAP's `simpcomp` package with the `SCLoadXML` command:
+By default, the output has the same formatting as the input. Alternatively, the `--xml` flag can be enabled to yield a `.xml` file that can be loaded by GAP's `simpcomp` package with the `SCLoadXML` command:
 
 ```
 $ sc-simplify < my-complex.slcx -px > simplified.xml

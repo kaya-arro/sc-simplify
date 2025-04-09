@@ -118,6 +118,8 @@ impl SimplicialComplex {
     }
 
     // Take Čech nerves until both the dimension and the number of vertices are minimized.
+    // Return the number of times the nerve was taken. It's not important, but it's nice for the
+    // user's edification.
     pub fn reduce(&mut self, quiet: bool) -> usize {
         let mut n = 0usize;
         let pb: ProgressBar;
