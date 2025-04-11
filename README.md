@@ -1,42 +1,101 @@
 # What it does
 
+## Behavior
+
 Reads a non-empty simplicial complex from `stdin` and prints an equivalent simplified complex or pair.
 
-The primary motivation is to accelerate homology computations for highly non-minimal complexes.
+The primary motivation is to accelerate homology computations for extremely large and highly non-minimal complexes.
 
-The default behavior prints a pair X, C of simplicial complexes in the same format as the input in which X has the homotopy type of the input and C is a large contractible subcomplex of X. The complexes X and C are delineated by a blank line.
+The default behavior prints a pair $X, C$ of simplicial complexes in which $X$ has the homotopy type of the input and $C$ is a large contractible subcomplex of $X$. The complexes $X$ and $C$ are delineated by a blank line.
+
+## Niche
+
+`sc-simplify` is fast, but so are other programs for homology computations. Even more than speed, `sc-simplify` aims for *memory efficiency*.
+
+Since the mid-to-late-2000s, the fastest algorithms for calculating the homology of simpicial complexes have preprocessed their input using the [discrete Morse theory](https://www.emis.de/journals/SLC/wpapers/s48forman.pdf) (DMT) developed by Forman and built upon by many others. `sc-simplify` does not use DMT and is consequently (in my testing) on the order of three to six times slower than programs like [Perseus](https://people.maths.ox.ac.uk/nanda/perseus/) that do.
+
+However, to use DMT, a program must typically store the cells of a complex in memory along with the values of a discrete Morse function or at least its gradient discrete vector field. As a consequence, it can be intractible to use such algorithms with exceedingly large complexes unless one has access to very large amounts of memory. For instance, when I try to run `perseus` on a five-dimensional complex with several million facets, the program quickly exhausts the memory of my computer and crashes. DMT is the ideal strategy to use when one's hardware supports it, but is unusable in practice for extremely large complexes.
+
+`sc-simplify`, in contast, only needs to store the facets and edges of a complex in memory along with the facets of some short-lived and usually-not-gigantic subcomplexes. As a result, it consumes orders of magnitude less memory than programs that utilize DMT while still enabling homology computations hundreds and even thousands of times faster than calculating the homology directly without preprocessing.
 
 # Usage
 
-The program reads its input from `stdin`. Each line is a facet presented as a space-separated list of vertices labeled by natural numbers less than 2<sup>32</sup>. The program is tolerant of excess whitespace, but if non-maximal faces are included in the input, you should enable the `--check-input` flag.
+## Options
 
-Examples:
+For a comprehensive explanation of the available options, see `sc-simplify --help` or `man ./sc-simplify.1.gz`.
 
-```bash
-sc-simplify < my-complex.slcx [OPTIONS ... ] > simplified.slcx
-sc-factory.sh | sc-simplify [OPTIONS ... ] > simplified.slcx
+## Input
+
+### Formatting input
+
+The program reads its input from `stdin`. Each line is a facet presented as a space-separated list of vertices labeled by natural numbers less than $2^{32}$. The program is tolerant of excess whitespace, but if non-empty non-maximal faces are included in the input, you should enable the`-c`/`--check-input` flag.
+
+Example input not requiring `--check-input`:
+
+```text
+0   1     3 2
+4 1    3
+
+
+2 5
 ```
 
-You can also enter `stdin` by hand, terminating the input with `^D`.
+ Example input requiring `--check-input`:
 
-By default, the output has the same formatting as the input. Alternatively, the `--xml` flag can be enabled to yield a `.xml` file that can be loaded by GAP's `simpcomp` package with the `SCLoadXML` command:
-
+```text
+0 1 2 3
+1 2 3 4
+2 3 4 0
+1 3 4
+0 1 4
 ```
-$ sc-simplify < my-complex.slcx -px > simplified.xml
+
+Input that contains characters other than numerals, spaces, and newlines will cause `sc-simplify` to panic.
+
+### Loading input
+
+For those unused to the terminal: since `sc-simplify` reads from `stdin`, you can redirect `stdin` from a file with `<`, pipe the input from the output of another command with `|`, or enter the input by hand, signalling its termination with `^D` (Ctrl + D) after a newline:
+
+```shell
+sc-simplify -NP1 < my-complex.simp > simplified.simp
+sc-factory.sh | sc-simplify -c > simplified.simp
+sc-simplify -p > circle.simp
+0 1
+1 2
+2 3
+0 3
+^D
+```
+
+## Output
+
+`sc-simplify` prints its output to `stdout`, so if you wish to save the output as a file, you should redirect `stdout` using `>` (see the examples above and below). If `stderr` is a terminal and the  `-q`/`--quiet` flag is not enabled, `sc-simplify` prints progress indicators to `stderr`.
+
+By default, the output has the same formatting as the input with the simplified complex and its contractible subcomplex delineated by a blank line.
+
+```shell
+sc-simplify -p < my-complex.simp > simplified.simp
+chomp-simplicial simplified.simp
+```
+
+Alternatively, the `-x`/`--xml` flag can be enabled to yield a `.xml` file that can be loaded by GAP's `simpcomp` package with the `SCLoadXML` command:
+
+```console
+$ sc-simplify < my-complex.simp -px > simplified.xml
 $ gap
 gap> LoadPackage("simpcomp");;
 gap> x := SCLoadXML("simplified.xml");;
-gap> SCHomologyInternal(x);
+gap> SCHomologyClassic(x);
 ```
 
-If you would like to use the program with Sage, small scripts for importing and exporting simplicial complexes in `sc-simplify`'s format to and from Sage are provided in the file `Python/sc_io.py`. For example, the `read_sc_pair` script can be used like so:
+Since GAP `simpcomp` does not compute relative homology, you should use the `-p`/`--no-pair` flag when preparing a complex as input for `simpcomp`.
+
+If you would like to use the program with Sage, functions for importing and exporting simplicial complexes in `sc-simplify`'s format to and from Sage are provided in the file `Python/sc_io.py`. For example, the `read_sc_pair` function can be used like so:
 
 ```python
-X, C = read_sc_pair("simplified-pair.slcx")
+X, C = read_sc_pair("simplified.simp")
 X.homology(subcomplex=C, enlarge=False, base_ring=QQ)
 ```
-
-For further usage details, see the help text: `sc-simplify --help`
 
 # Algorithm
 
@@ -46,11 +105,19 @@ The following steps are the default algorithm; they can be adjusted by passing v
 
 2. Identify edges that can be contracted without changing the homotopy type of the complex and contract them.
 
-3. Identify collapsible faces and collapse them.
+3. (Disabled by default) identify collapsible faces and collapse them.
+   
+   - This process does not generally expedite calculation of homotopy invariants, so you must enable the `--max-collapse-loops` flag with a positive number if you wish to use this functionality.
 
 4. Construct a large contractible subcomplex.
 
 # Installation
+
+## Dependencies
+
+- Rust
+
+## Install process
 
 1. If necessary, install Rust.
    
@@ -62,7 +129,7 @@ The following steps are the default algorithm; they can be adjusted by passing v
 
 2. If necessary (e.g. if you did not use the official installation script), update Rust to the latest edition with `rustup upgrade`.
 
-3. Clone this repository.
+3. Clone/download this repository.
 
 4. Execute `cargo build -r` in the root directory of the repository.
 
@@ -71,13 +138,13 @@ The following steps are the default algorithm; they can be adjusted by passing v
 6. The binary can be found at `target/release/sc-simplify`. Link to it from your `PATH` with
    
    ```bash
-   sudo ln -s $(pwd)/target/release/sc-simplify /usr/local/bin/
+   sudo ln -s $(pwd)/target/release/sc-simplify /usr/bin/
    ```
    
    If you plan to delete or move `target/release/sc-simplify`, make a hardlink by omitting the `-s` flag or copy the binary with
    
    ```bash
-   sudo cp $(pwd)/target/release/sc-simplify /usr/local/bin/
+   sudo cp $(pwd)/target/release/sc-simplify /usr/bin/
    ```
    
    or generally do whatever you want with the binary: it's yours!
@@ -92,18 +159,27 @@ The following steps are the default algorithm; they can be adjusted by passing v
 
 - [ ] Improve the documentation of individual methods and publish the crate as a library on crates.io.
 
+- [ ] Compile a binary to wasm so that users who do not wish to compile the program can use it.
+
 - [ ] Include examples in the repository.
 
-- [ ] Remove more excess cells created by `--thorough` by applying the collapse algorithm to cells of greater codimension.
+- [ ] Remove more excess cells created by `--thorough` by applying the collapse algorithm to remove cells of greater codimension than one.
 
-- [ ] Maybe someday implement integral simplicial homology in Rust??
+- [ ] Maybe implement a flag to use a DMT algorithm.
   
-  - It would be quite a while before I would have time to get to this.
-  - Sage is pretty quick if you take coefficients in a field. Integral homology is much slower.
+  - The main motivation simply be the fact that a number of software packages implementing DMT algorithms seem no longer to be maintained. Perseus is usable for me, but I am unable to get CHomP or RedHom to compile on my machine, and the DMT functions of `simpcomp` also give me errors.
+
+- [ ] Maybe someday implement integral simplicial homology in Rust, or use an existing crate that does?
+  
+  - Sage is pretty quick when taking homology with coefficients in a field. The main motivations to do this would be:
+    
+    - to accelerate the calculation of integral homology
+    
+    - to allow the use of a DMT algorithm that produces a Morse complex directly without having to hassle with exporting it to other software.
 
 # Limitations
 
-This package is not intended to be a general toolkit for working with simplicial complexes in Rust. It is focused on the single goal of filling what I perceived as a gap in the functionality of available software: efficiently reducing complexes to accelerate calculations of homotopy invariants (the functionality of the `--thorough` flag is the one expection to this).
+This package is not intended to be a general toolkit for working with simplicial complexes. It is focused on the single goal of filling what I perceived as a gap in the functionality of available software: efficiently reducing complexes to accelerate calculations of homotopy invariants (the functionality of the `--thorough` flag is the one exception to this).
 
 Other tools exist for more general manipulations of simplicial complexes. A highly non-exhausitive list of these includes the `simplicial_topology` Rust crate, the `simpcomp` GAP package, and the `sage.topology.simplicial_complex` Sage/Python module.
 
