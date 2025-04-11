@@ -42,12 +42,12 @@ pub struct Cli {
     #[arg(short = 'P', long, default_value_t = 2, value_name = "MAX")]
     pub max_pinch_loops: usize,
 
-    /// Skip collapsing free faces.
+    /// Specify the maximum number of times to run the "collapse" algorithm.
     ///
-    /// Complexes that do not need to be simplified with Čech nerves often also do need benefit
-    /// much from collapsing, so you may wish to use this flag in conjunction with --skip-nerve.
-    #[arg(short = 'C', long, default_value_t = false)]
-    pub skip_collapse: bool,
+    /// The "collapse" algorithm collapses free faces of the complex. It is not usually useful for
+    /// accelerating calculations of homotopy invariants, so it is disabled by default.
+    #[arg(short = 'C', long, default_value_t = 0, value_name = "MAX")]
+    pub max_collapse_loops: usize,
 
     /// Spend extra time trying to minimize the number of vertices.
     ///
@@ -65,10 +65,6 @@ pub struct Cli {
     /// If this flag is not enabled, the tool prints a complex and subcomplex, X, Y, whose pair
     /// homotopy type -- i.e. the homotopy type of the mapping cone of the inclusion of Y into X --
     /// agrees with the homotopy type of the input.
-    // ///
-    // /// If this flag is used in conjunction with the `-e/--enlarge-subcomplex` flag, the program
-    // /// will print the mapping cone of the inclusion of the subcomplex (after applying the other
-    // /// transformations to the pair).
     #[arg(short = 'p', long, default_value_t = false)]
     pub no_pair: bool,
 
@@ -79,7 +75,7 @@ pub struct Cli {
     #[arg(short, long, default_value_t = false)]
     pub xml: bool,
 
-    /// Suppresses the progress indicators.
+    /// Suppress the progress indicators.
     #[arg(short, long, default_value_t = false)]
     pub quiet: bool,
 

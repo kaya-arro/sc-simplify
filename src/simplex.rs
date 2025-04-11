@@ -37,6 +37,30 @@ impl PartialOrd for Simplex {
     }
 }
 
+// impl PartialOrd for Simplex {
+//     fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
+//         if self.0 == rhs.0 {
+//             return Some(Ordering::Equal);
+//         }
+//         if self.0.is_empty() {
+//             return Some(Ordering::Less);
+//         }
+//         if rhs.0.is_empty() {
+//             return Some(Ordering::Greater);
+//         }
+//         // if self.0.is_disjoint(&rhs.0) {
+//         //     return None;
+//         // }
+//         if self.0.is_subset(&rhs.0) {
+//             return Some(Ordering::Less);
+//         }
+//         if rhs.0.is_subset(&self.0) {
+//             return Some(Ordering::Greater);
+//         }
+//         return None;
+//     }
+// }
+
 
 impl BitAnd for &Simplex {
     type Output = Simplex;
