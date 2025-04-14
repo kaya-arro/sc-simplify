@@ -12,6 +12,9 @@ use crate::Parser;
 /// The complexes X and C are delineated by a blank line.
 pub struct Cli {
 
+    #[arg(short, long, default_value_t = false)]
+    pub morse_complex: bool,
+
     /// Check that the faces in the input are maximal.
     ///
     /// Depending on other settings used, input including non-maximal faces may cause unexpected
