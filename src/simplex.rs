@@ -1,21 +1,24 @@
 use std::cmp::Ordering;
+use std::fmt;
+use std::fmt::Display;
 
-use crate::{BitAnd, Default, BTreeSet, HashSet, new_v, the_hasher};
+use crate::{BitAnd, Default, BTreeSet, HashSet, new_hs, new_vec, to_vec, to_rev_sorted_vec};
 use std::ops::{BitOr, Sub};
 use std::hash::{Hash, Hasher};
 
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Simplex(pub HashSet<u32>);
 
 
-impl Default for Simplex {
-    fn default() -> Self {
-        Self(HashSet::with_hasher(the_hasher()))
-    }
-}
+// impl Default for Simplex {
+//     fn default() -> Self {
+//         Self(new_hs::<u32>(0))
+//     }
+// }
 
-
+// Considering making the BTreeSet an attribute so it doesn't have to be recalculated each time the
+// simplex is hashed.
 impl Hash for Simplex {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.iter().collect::<BTreeSet<&u32>>().hash(state);
@@ -37,35 +40,23 @@ impl PartialOrd for Simplex {
     }
 }
 
-// impl PartialOrd for Simplex {
-//     fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
-//         if self.0 == rhs.0 {
-//             return Some(Ordering::Equal);
-//         }
-//         if self.0.is_empty() {
-//             return Some(Ordering::Less);
-//         }
-//         if rhs.0.is_empty() {
-//             return Some(Ordering::Greater);
-//         }
-//         // if self.0.is_disjoint(&rhs.0) {
-//         //     return None;
-//         // }
-//         if self.0.is_subset(&rhs.0) {
-//             return Some(Ordering::Less);
-//         }
-//         if rhs.0.is_subset(&self.0) {
-//             return Some(Ordering::Greater);
-//         }
-//         return None;
-//     }
-// }
+
+impl Display for Simplex {
+    fn fmt (&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut vec = to_vec(&self.0);
+        vec.sort_unstable();
+        let mut vec_str = new_vec::<String>(vec.len());
+        vec_str.extend(vec.into_iter().map(|v| format!["{}", v]));
+        write![f, "[{}]", vec_str.join(" ")]
+    }
+}
 
 
 impl BitAnd for &Simplex {
     type Output = Simplex;
 
     fn bitand(self, rhs: &Simplex) -> Simplex {
+        // if self.is_disjoint(&rhs) { return Simplex::default(); }
         Simplex(&self.0 & &rhs.0)
     }
 }
@@ -114,6 +105,14 @@ impl Simplex {
         self.0.insert(*item)
     }
 
+    pub fn add_vertex(&self, item: &u32) -> Self {
+        let mut new_set = new_hs(self.len() + 1);
+        new_set.extend(&self.0);
+        new_set.insert(*item);
+
+        Self(new_set)
+    }
+
     pub fn remove(&mut self, item: &u32) -> bool {
         self.0.remove(item)
     }
@@ -122,22 +121,38 @@ impl Simplex {
         Self(&self.0 & &rhs.0)
     }
 
+    pub fn tuple(&self) -> Vec<u32> {
+        to_rev_sorted_vec(&self.0)
+    }
+
     pub fn faces(&self) -> Vec<Self> {
         self.0.iter().map(|v| Simplex(
             self.0.clone().into_iter().filter(|u| u != v).collect()
         )).collect()
     }
+
+    pub fn sgn(&self, face: &Self) -> i32 {
+        // Maybe make tuple a method
+        let tuple = self.tuple();
+        for i in 0..tuple.len() {
+            if !face.0.contains(&tuple[i]) { return (-1i32).pow(i as u32); }
+        }
+
+        0
+    }
 }
 
 
+// We make a new struct so that we can use a different ORd
 #[derive(Clone, PartialEq, Eq)]
 pub struct PrettySimplex(Vec<u32>);
 
 
 impl PrettySimplex {
+    // We implement an ad hoc method instead of Display so that we can call the parameter d
     pub fn print(&self, d: usize) {
-        let mut vec_str = new_v::<String>(self.0.len());
-        vec_str.extend(self.0.iter().map(|v| format!("{:>d$}", v)));
+        let mut vec_str = new_vec::<String>(self.0.len());
+        vec_str.extend(self.0.iter().map(|v| format!["{:>d$}", v]));
         println!("{}", vec_str.join(" "))
     }
 }

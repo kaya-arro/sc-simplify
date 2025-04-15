@@ -14,7 +14,7 @@ The default behavior prints a pair $X, C$ of simplicial complexes in which $X$ h
 
 Since the mid-to-late-2000s, the fastest algorithms for calculating the homology of simpicial complexes have preprocessed their input using the [discrete Morse theory](https://www.emis.de/journals/SLC/wpapers/s48forman.pdf) (DMT) developed by Forman and built upon by many others. `sc-simplify` does not use DMT and is consequently (in my testing) on the order of three to six times slower than programs like [Perseus](https://people.maths.ox.ac.uk/nanda/perseus/) that do.
 
-However, to use DMT, a program must typically store the cells of a complex in memory along with the values of a discrete Morse function or at least its gradient discrete vector field. As a consequence, it can be intractible to use such algorithms with exceedingly large complexes unless one has access to very large amounts of memory. For instance, when I try to run `perseus` on a five-dimensional complex with several million facets, the program quickly exhausts the memory of my computer and crashes. DMT is the ideal strategy to use when one's hardware supports it, but is unusable in practice for extremely large complexes.
+However, to use DMT, a program must typically store the cells of a complex in memory along with the values of a discrete Morse function or at least its gradient discrete vector field. As a consequence, it can be intractible to use such algorithms with exceedingly large complexes unless one has access to very large amounts of memory. This is especially true for programs geared toward persistence homology.
 
 `sc-simplify`, in contast, only needs to store the facets and edges of a complex in memory along with the facets of some short-lived and usually-not-gigantic subcomplexes. As a result, it consumes orders of magnitude less memory than programs that utilize DMT while still enabling homology computations hundreds and even thousands of times faster than calculating the homology directly without preprocessing.
 
@@ -28,7 +28,7 @@ For a comprehensive explanation of the available options, see `sc-simplify --hel
 
 ### Formatting input
 
-The program reads its input from `stdin`. Each line is a facet presented as a space-separated list of vertices labeled by natural numbers less than $2^{32}$. The program is tolerant of excess whitespace, but if non-empty non-maximal faces are included in the input, you should enable the`-c`/`--check-input` flag.
+The program reads its input from `stdin`. Each line is a facet presented as a space-separated list of vertices labeled by natural numbers less than $2^{32}$. The program is tolerant of excess whitespace. If non-empty non-maximal faces are included in the input, bugs may or may not arise; in this case, you should enable the`-c`/`--check-input` flag to ensure correct behavior.
 
 Example input not requiring `--check-input`:
 
@@ -54,11 +54,11 @@ Input that contains characters other than numerals, spaces, and newlines will ca
 
 ### Loading input
 
-For those unused to the terminal: since `sc-simplify` reads from `stdin`, you can redirect `stdin` from a file with `<`, pipe the input from the output of another command with `|`, or enter the input by hand, signalling its termination with `^D` (Ctrl + D) after a newline:
+For those unused to the terminal: since `sc-simplify` reads fr`stdin`om `stdin`, you can redirect redirect your input from a file with `<`, pipe the input from the output of another command with `|`, or enter the input by hand, signalling its termination with `^D` (Ctrl + D) after a newline:
 
 ```shell
-sc-simplify -NP1 < my-complex.simp > simplified.simp
-sc-factory.sh | sc-simplify -c > simplified.simp
+sc-simplify -NP1 < my-complex.simp > pinched.simp
+sc-factory.sh | sc-simplify -c > checked.simp
 sc-simplify -p > circle.simp
 0 1
 1 2
@@ -81,10 +81,10 @@ chomp-simplicial simplified.simp
 Alternatively, the `-x`/`--xml` flag can be enabled to yield a `.xml` file that can be loaded by GAP's `simpcomp` package with the `SCLoadXML` command:
 
 ```console
-$ sc-simplify < my-complex.simp -px > simplified.xml
+$ sc-simplify < my-complex.simp -px > simplified.xml.sc
 $ gap
 gap> LoadPackage("simpcomp");;
-gap> x := SCLoadXML("simplified.xml");;
+gap> x := SCLoadXML("simplified.xml.sc");;
 gap> SCHomologyClassic(x);
 ```
 
@@ -149,6 +149,10 @@ The following steps are the default algorithm; they can be adjusted by passing v
    
    or generally do whatever you want with the binary: it's yours!
 
+## Portability
+
+Since the purpose of this program is efficiency, the `-C target-cpu=native`  `rustc` compile flag is enabled in `.cargo/config.toml`. This means that you may not be able to run the produced binary on a machine other than the one on which you built it (or at least a machine with the same processor). If you would like a more portable but possibly slower version of the program, comment out this flag.
+
 # Development plans and hopes and dreams
 
 - [x] Make tweaks to improve performance.
@@ -185,9 +189,7 @@ Other tools exist for more general manipulations of simplicial complexes. A high
 
 I do not currently have plans to extend this package into something more ambitious, but I am open to feature requests that generally align with this package's aim of accelerating the computation of homotopy invariants and which are not implemented in other software.
 
-# Acknowledgements
-
-The [`enlarge_in_supercomplex`](https://github.com/kaya-arro/sc-simplify/blob/18f794887aeee89266d0038d1942aaa945ec8938/src/simplicial_complex.rs#L170) method in this program is largely ported from the [`_enarlge_subcomplex`](https://github.com/sagemath/sage/blob/871ba9daed15374d6b2ff1c533970f44b70f21e9/src/sage/topology/simplicial_complex.py#L3901) method used by Sage and written by John Palmieri.
+# 
 
 # License
 
