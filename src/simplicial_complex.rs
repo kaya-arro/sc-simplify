@@ -3,11 +3,9 @@ use crate::Duration;
 use crate::{BitAnd, Default};
 
 use crate::{ProgressBar, update_style, info_style, info_number_style, the_sty};
-use crate::{HashSet, new_hs, new_hm, new_vec, to_rev_sorted_vec};
+use crate::{HashSet, new_hs, new_hm, new_vec, new_vd, to_rev_sorted_vec};
 
-use crate::{Rc, HashMap, VecDeque};
-
-use crate::{Simplex, SComplex};
+use crate::Simplex;
 
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,6 +160,17 @@ impl SimplicialComplex {
                     nerve = self.nerve();
                 }
                 n += 1;
+
+                if !quiet {
+                    pb.set_message(
+                        format![
+                            "{} {} {}",
+                            info_style().apply_to("Simplified with Čech nerves"),
+                                   info_number_style().apply_to(format!["{}", n]),
+                                   info_style().apply_to("times."),
+                        ]
+                    );
+                }
             }
             if n % 2 != 0 {
                 *self = nerve;
@@ -210,71 +219,88 @@ impl SimplicialComplex {
         }
     }
 
-    // Consider using a VecDeque<&Simplex> queue to speed this up
-    // Consider implementing unique queue struct that uses VecDeque<&_> and HashSet<&_> -- may need to use Rc<_> instead of &_
     fn enlarge_in_supercomplex(&mut self, supercomplex: &Self, care: bool, quiet: bool) -> bool {
+        let mut n = 0usize;
+        let pb: ProgressBar;
+        if quiet {
+            pb = ProgressBar::hidden();
+        } else {
+            pb = ProgressBar::new_spinner();
+            pb.enable_steady_tick(Duration::from_millis(100));
+            pb.set_message(
+                format![
+                    "{} {} {}",
+                    info_style().apply_to("Added"),
+                           info_number_style().apply_to(format!["{}", n]),
+                           info_style().apply_to("facets to the subcomplex."),
+                ]
+            );
+        }
+
         let check: bool = care && !self.facets.iter().all(|f| supercomplex.facets.contains(f));
 
-        let mut remainder = new_vec::<&Simplex>(supercomplex.facets.len());
+        let fc = supercomplex.facets.len();
+        let mut queue = new_vd::<&Simplex>(fc);
+        let mut rem = new_vd::<&Simplex>(fc);
+        rem.extend(&supercomplex.facets);
 
-        // The following doesn't seem to do much...
-
-        // let mut facet_set = new_hs::<&Simplex>(self.facets.len());
-        // facet_set.extend(self.facets.iter());
-        // remainder.extend(supercomplex.facets.iter().filter(|f| !facet_set.contains(f)));
-        // drop(facet_set);
-
-        remainder.extend(supercomplex.facets.iter().filter(|f| !self.facets.contains(f)));
-
-        remainder.shrink_to_fit();
-
-        let mut remove_these = new_hs::<&Simplex>(remainder.len());
-        let mut done = false;
-        while !done {
-            done = true;
-
-            let mut n = 0;
-
-            let r_len = remainder.len();
-            let pb: ProgressBar;
-            if quiet {
-                pb = ProgressBar::hidden();
-            } else {
-                pb = ProgressBar::new(r_len as u64);
-                pb.set_style(the_sty());
-                pb.set_message(
-                    format!["{}", update_style().apply_to(format!["Added {n} facets"])]
-                );
-            }
-
-            for f in &remainder {
-                pb.inc(1);
-                if self.intersection_with_simplex(f).is_contractible() {
-                    self.facets.push((*f).clone());
-                    remove_these.insert(f);
-
-                    done = false;
-
-                    n += 1;
-                    pb.set_message(
-                        format!["{}", update_style().apply_to(format!["Added {n} facets"])]
-                    );
+        // Alternatively, try using swap_take. Benchmark.
+        let mut i = 0;
+        while i < rem.len() {
+            if let Some(facet) = rem.pop_front() {
+                let mut was_queued = false;
+                for s_facet in &self.facets {
+                    if !s_facet.is_disjoint(facet) {
+                        was_queued = true;
+                        queue.push_back(facet);
+                        break
+                    }
+                }
+                if !was_queued {
+                    i += 1;
+                    rem.push_back(facet);
                 }
             }
-
-            remainder.retain(|s| !remove_these.contains(s));
-            remainder.shrink_to_fit();
-            remove_these.clear();
-            remove_these.shrink_to(remainder.len());
-
-            pb.finish();
         }
+
+        while let Some(facet) = queue.pop_front() {
+            let intrsct = self.intersection_with_simplex(facet);
+            if intrsct.is_contractible() {
+                self.facets.push(facet.clone());
+                if !quiet {
+                    n += 1;
+                    pb.set_message(
+                        format![
+                            "{} {} {}",
+                            info_style().apply_to("Added"),
+                                   info_number_style().apply_to(format!["{}", n]),
+                                   info_style().apply_to("facets to the subcomplex."),
+                        ]
+                    );
+                }
+                let mut i = 0;
+                while i < rem.len() {
+                    if let Some(nf) = rem.pop_front() {
+                        if !facet.is_disjoint(nf) && !intrsct.contains(&(facet & nf)) {
+                            queue.push_back(nf);
+                        } else {
+                            rem.push_back(nf);
+                            i += 1;
+                        }
+                    }
+                }
+            } else {
+                rem.push_back(facet);
+            }
+        }
+
+        pb.finish();
 
         if check {
             self.maximalify();
         }
 
-        remainder.is_empty()
+        rem.is_empty()
     }
 
     fn is_deformation_retract(&mut self, supercomplex: &Self) -> bool {
@@ -475,172 +501,6 @@ impl SimplicialComplex {
         for facet in &mut self.facets {
             facet.0 = facet.0.iter().map(|v| vertex_dict[v]).collect();
         }
-    }
-
-
-    // DMT stuff from Mischaikow, Nanda: Morse Theory for Filtrations...
-
-    pub fn add_face(&mut self, s: Simplex) {
-        self.facets.push(s);
-        self.maximalify()
-    }
-
-    // Optimize this shit
-    pub fn cells(&self) -> Vec<HashSet<Rc<Simplex>>> {
-        let first_len = self.first_len();
-        let cells: Vec<HashSet<Rc<Simplex>>> = vec![new_hs::<Rc<Simplex>>(0); first_len + 2];
-        let mut new = SComplex { cells };
-        for facet in &self.facets {
-            new.insert(Rc::new(facet.clone()));
-        }
-        for i in (2..=first_len).rev() {
-            for s in new.cells[i].clone() {
-                for v in &(*s).0 {
-                    let mut cell = (*s).0.clone();
-                    cell.remove(&v);
-                    new.insert(Rc::new(Simplex(cell)));
-                }
-            }
-        }
-
-        new.cells
-    }
-
-    // Buggy: note, when something is removed from N, it is also removed from all cbs and del^Ns!!! No indication that it is removed from g however.
-    pub fn morse_reduce(
-        self
-    ) -> HashMap<Rc<Simplex>, HashMap<Rc<Simplex>, i32>> {
-        let mut cells = self.cells();
-        let mut crits = new_hs::<Rc<Simplex>>(1);
-        let mut del = new_hm::<Rc<Simplex>, HashMap<Rc<Simplex>, i32>>(1);
-        let mut d = 0usize;
-        while !cells.iter().all(|set| set.is_empty()) {
-
-            // make_critical
-            let a_crit = 'outer: loop {
-                // Similar: figure out how to not clone!
-                for a in &cells[d] {
-                    crits.insert(a.clone());
-                    // update_gradient_chain_crit
-                    for zr in self.cofaces(&*a).into_iter().filter(
-                        // |f| cells[f.len()].contains(f) || crits.contains(f)
-                        |f| true
-                    ) {
-                        let z = Rc::new(zr);
-                        let sgn = z.sgn(&a);
-                        if let Some(z_bd) = del.get_mut(&z) {
-                            if let Some(val) = z_bd.get_mut(a) {
-                                *val += sgn;
-                            } else {
-                                z_bd.insert(a.clone(), sgn);
-                            }
-                        } else {
-                            let mut z_bd = new_hm::<Rc<Simplex>, i32>(1);
-                            z_bd.insert(a.clone(), sgn);
-                            del.insert(z, z_bd);
-                        }
-                    }
-
-                    break 'outer a.clone();
-                }
-                d += 1;
-            };
-            cells[d].remove(&a_crit);
-
-            let a_cofaces = self.cofaces(&a_crit);
-            let acl = a_cofaces.len();
-            let mut queued = new_hs::<Rc<Simplex>>(acl);
-            let mut que = VecDeque::<Rc<Simplex>>::with_capacity(acl);
-            queued.extend(a_cofaces.iter().map(|f| Rc::new(f.clone())));
-            que.extend(a_cofaces.into_iter().map(|f| Rc::new(f)));
-            while let Some(s) = que.pop_front() {
-                let s_faces = s.faces();
-                let mut s_faces_kept = new_vec::<Rc<Simplex>>(s_faces.len());
-                for face in s_faces {
-                    if let Some(f) = cells[face.len()].get(&face) {
-                        s_faces_kept.push(f.clone());
-                    }
-                }
-
-                if s_faces_kept.is_empty() {
-                    for cr in self.cofaces(&*s) {
-                        let c = Rc::new(cr);
-                        if queued.insert(c.clone()) && cells[c.len()].contains(&c) {
-                            que.push_back(c.clone());
-                        }
-                    }
-                } else if s_faces_kept.len() == 1 {
-                    let e = s_faces_kept[0].clone();
-                    drop(s_faces_kept);
-
-                    // remove_pair
-                    // Swap e and s??? double check
-                    cells[s.len()].remove(&s);
-                    que.extend(self.cofaces(&e).into_iter().filter(
-                        |f| queued.insert(Rc::new(f.clone())) && cells[f.len()].contains(f)
-                    ).map(|f| Rc::new(f)));
-
-                    if e.len() == d {
-                        if let Some(s_bd) = del.get(&s) {
-                            let sgn = s.sgn(&e) * (-1);
-                            let mut e_bd = new_hm::<Rc<Simplex>, i32>(s_bd.len());
-                            for (e, c) in s_bd.iter() {
-                                e_bd.insert(s.clone(), c * sgn);
-                            }
-                            del.insert(e.clone(), e_bd);
-                        }
-
-                        // update_gradient_chain_rem
-                        // eprintln!["R"];
-                        for zr in self.cofaces(&e).into_iter().filter(
-                            // |f| cells[f.len()].contains(f) || crits.contains(f)
-                            |f| true
-                        ) {
-                            let z = Rc::new(zr);
-                            let sgn = z.sgn(&e);
-                            if let Some(e_bd_r) = del.get(&*e) {
-                                let e_bd = e_bd_r.clone();
-                                if let Some(z_bd) = del.get_mut(&z) {
-                                    for t in e_bd.keys() {
-                                        let update = sgn * e_bd[t];
-                                        if let Some(z_bd_t_val) = z_bd.get_mut(t) {
-                                            *z_bd_t_val += update;
-                                        } else {
-                                            z_bd.insert(t.clone(), update);
-                                        }
-                                    }
-                                } else {
-                                    let mut z_bd = new_hm::<Rc<Simplex>, i32>(e_bd.len());
-                                    for t in e_bd.keys() {
-                                        z_bd.insert(t.clone(), sgn * e_bd[t]);
-                                    }
-                                    del.insert(z, z_bd);
-                                }
-                            }
-                        }
-
-                    }
-                    cells[e.len()].remove(&*e);
-
-                }
-            }
-        }
-        // del.retain(|s, _| crits.contains(s));
-        // Can't use filter because we mutate del
-        for a in crits {
-            if !del.contains_key(&a) {
-                del.insert(a.clone(), new_hm::<Rc<Simplex>, i32>(0));
-            }
-        }
-
-        // It might be better to use some `new_hm`s here for capacity reasons, but it's probably
-        // not a high priority. Check that out later.
-        // See about moving instead of cloning??? Will very probably need to clone the keys for the
-        // second layer `HashMap` unless I come up with something clever... Maybe a Cow.
-        // Possibly much much better idea: create dictionaries to label the cells in each dimension
-        // with integers. Could be tedious but would probably really really really speed things up.
-        // No: `Rc`s are even better: cheap and more descriptive with less lookup overhead
-        del
     }
 
 }

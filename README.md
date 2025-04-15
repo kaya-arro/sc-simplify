@@ -189,9 +189,7 @@ Other tools exist for more general manipulations of simplicial complexes. A high
 
 I do not currently have plans to extend this package into something more ambitious, but I am open to feature requests that generally align with this package's aim of accelerating the computation of homotopy invariants and which are not implemented in other software.
 
-# Acknowledgements
-
-The [`enlarge_in_supercomplex`](https://github.com/kaya-arro/sc-simplify/blob/18f794887aeee89266d0038d1942aaa945ec8938/src/simplicial_complex.rs#L170) method in this program is largely ported from the [`_enarlge_subcomplex`](https://github.com/sagemath/sage/blob/871ba9daed15374d6b2ff1c533970f44b70f21e9/src/sage/topology/simplicial_complex.py#L3901) method used by Sage and written by John Palmieri.
+# 
 
 # License
 
