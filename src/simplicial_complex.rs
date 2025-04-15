@@ -244,7 +244,6 @@ impl SimplicialComplex {
         let mut rem = new_vd::<&Simplex>(fc);
         rem.extend(&supercomplex.facets);
 
-        // Alternatively, try using swap_take. Benchmark.
         let mut i = 0;
         while i < rem.len() {
             if let Some(facet) = rem.pop_front() {
@@ -281,7 +280,7 @@ impl SimplicialComplex {
                 let mut i = 0;
                 while i < rem.len() {
                     if let Some(nf) = rem.pop_front() {
-                        if !facet.is_disjoint(nf) && !intrsct.contains(&(facet & nf)) {
+                        if !intrsct.contains(&(facet & nf)) {
                             queue.push_back(nf);
                         } else {
                             rem.push_back(nf);
