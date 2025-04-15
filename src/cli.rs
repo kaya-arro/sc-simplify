@@ -11,6 +11,8 @@ use crate::Parser;
 /// in which X has the homotopy type of the input and C is a large contractible subcomplex of X.
 /// The complexes X and C are delineated by a blank line.
 pub struct Cli {
+    #[arg(short, long, default_value_t = false)]
+    pub morse_complex: bool,
 
     /// Check that the faces in the input are maximal.
     ///
