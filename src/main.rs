@@ -1,13 +1,14 @@
-#![allow(unused)]
+// #![allow(unused)]
 
 use std::default::Default;
 use std::ops::BitAnd;
-use std::collections::BTreeSet;
-use std::io::{stderr, IsTerminal};
 use std::collections::VecDeque;
+// use std::collects::BTreeSet;
+use std::io::{stderr, IsTerminal};
 use std::rc::Rc;
 use std::cmp::min;
 use std::fmt::Display;
+use std::time::Duration;
 
 mod simplex;
 use simplex::{Simplex, PrettySimplex};
@@ -16,7 +17,7 @@ mod simplicial_complex;
 use simplicial_complex::SimplicialComplex;
 
 mod s_complex;
-use s_complex::SComplex;
+use s_complex::{SComplex, ChainComplex};
 
 use clap::Parser;
 mod cli;
@@ -25,7 +26,7 @@ use cli::Cli;
 use indicatif::ProgressBar;
 mod io;
 use io::{new_pb, new_spnr};
-use io::{head_sty, upd_sty, info_sty_str, info_sty_num};
+use io::{head_sty, upd_sty, info_sty_str};
 use io::{sc_info, read_input, write_sc, write_s_complex, write_chain_complex};
 
 use rustc_hash::FxBuildHasher;
@@ -59,12 +60,12 @@ fn to_vec<T: Copy>(s: &HashSet<T>) -> Vec<T> {
     v
 }
 
-fn to_rev_sorted_vec(set: &HashSet<u32>) -> Vec<u32> {
-    let mut vec = to_vec(&set);
-    vec.sort_unstable_by(|a, b| b.cmp(a));
-
-    vec
-}
+// fn to_rev_sorted_vec(set: &HashSet<u32>) -> Vec<u32> {
+//     let mut vec = to_vec(&set);
+//     vec.sort_unstable_by(|a, b| b.cmp(a));
+//
+//     vec
+// }
 
 fn to_sorted_vec(set: &HashSet<u32>) -> Vec<u32> {
     let mut vec = to_vec(&set);
@@ -82,7 +83,12 @@ fn main() {
     let quiet = cli.quiet || !stderr().is_terminal();
 
     if cli.morse_complex {
-        // let mut s_complex = SComplex::from(sc);
+        let mut s_complex = SComplex::from(sc);
+
+        let cc = s_complex.morse_reduce();
+
+        write_chain_complex(cc);
+
         // let mut repeat = true;
         // while repeat {
         //     repeat = false;
@@ -93,15 +99,14 @@ fn main() {
         //         repeat = true;
         //     }
         // }
-        // // s_complex.relabel_vertices();
-        // write_s_complex(s_complex.clone());
-        // // println![];
-        // // let (main, sub) = s_complex.to_pair();
-        // // write_sc(&main, false);
-        // // println![];
-        // // write_sc(&sub, false);
+        // s_complex.relabel_vertices();
+        write_s_complex(s_complex.clone());
+        // println![];
+        // let (main, sub) = s_complex.to_pair();
+        // write_sc(&main, false);
+        // println![];
+        // write_sc(&sub, false);
 
-        write_chain_complex(sc.morse_reduce());
     } else {
         let xml = cli.xml;
 
@@ -120,9 +125,12 @@ fn main() {
             // There is no need to perform checks if we reduce.
             if !quiet { eprintln!["\n{}", head_sty("Applying Čech nerves:")]; }
             let nerve_count = sc.reduce(quiet);
-            if !quiet && nerve_count > 0 {
-                eprintln!["\n"];
-                sc_info(&sc, "After reducing, the complex");
+            if !quiet {
+                eprintln![];
+                if nerve_count > 0 {
+                    eprintln![];
+                    sc_info(&sc, "After reducing, the complex");
+                }
             }
         }
 
@@ -167,18 +175,24 @@ fn main() {
                     // vertices helps shake things up and allow further pinches.
                     sc.relabel_vertices();
                 }
-                if !quiet && i < cli.max_pinch_loops {
-                    eprintln!["\n"];
-                    sc_info(&sc, "After pinching, the complex");
+                if !quiet {
+                    eprintln![];
+                    if i < cli.max_pinch_loops {
+                        eprintln![];
+                        sc_info(&sc, "After pinching, the complex");
+                    }
                 }
             }
             i = cli.max_collapse_loops;
             if i > 0 {
                 if !quiet { eprintln!["\n{}", head_sty("Collapsing faces:")]; }
                 while i > 0 && sc.collapse(quiet) { i -= 1; }
-                if !quiet && i < cli.max_collapse_loops {
-                    eprintln!["\n"];
-                    sc_info(&sc, "After collapsing, the complex");
+                if !quiet {
+                    eprintln![];
+                    if i < cli.max_collapse_loops {
+                        eprintln![];
+                        sc_info(&sc, "After collapsing, the complex");
+                    }
                 }
             }
         }

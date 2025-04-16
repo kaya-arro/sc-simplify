@@ -2,7 +2,9 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use crate::{BitAnd, Default, Display};
-use crate:: {BTreeSet, HashSet, new_hs, new_vec, to_vec, to_sorted_vec, to_rev_sorted_vec};
+use crate::{HashSet, new_hs, new_vec, to_vec, to_sorted_vec};
+// use crate::to_rev_sorted_vec;
+// use crate::BTreeSet;
 use std::ops::{BitOr, Sub};
 use std::hash::{Hash, Hasher};
 

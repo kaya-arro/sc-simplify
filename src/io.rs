@@ -1,14 +1,15 @@
 use std::io::{stdin, BufRead};
 use std::sync::LazyLock;
-use std::time::Duration;
 
 use indicatif::{ProgressStyle, ProgressBar};
 use console::{Style, StyledObject};
 
 use crate::Display;
+use crate::Duration;
 use crate::{HashSet, new_vec};
-use crate::{SimplicialComplex, SComplex, Simplex, PrettySimplex};
-use crate::{Rc, HashMap};
+use crate::{SimplicialComplex, SComplex, ChainComplex, Simplex, PrettySimplex};
+use crate::Rc;
+// use crate::HashMap;
 
 pub fn new_pb(n: usize) -> ProgressBar {
     let pb = ProgressBar::new(n as u64);
@@ -151,11 +152,11 @@ pub fn write_s_complex(sc: SComplex) {
     }
 }
 
-pub fn write_chain_complex(del: HashMap<Rc<Simplex>, HashMap<Rc<Simplex>, i32>>) {
-    let mut output = del.keys().into_iter().map(|s| s.clone()).collect::<Vec<Rc<Simplex>>>();
+pub fn write_chain_complex(del: ChainComplex) {
+    let mut output = del.0.keys().into_iter().map(|s| s.clone()).collect::<Vec<Rc<Simplex>>>();
     output.sort_unstable_by_key(|s| s.len());
     for s in output {
-        let s_bd = &del[&s];
+        let s_bd = &del.0[&s];
         let mut bd_str = format!["∂{} =", s];
         for (t, val) in s_bd {
             let fmtted = format![" {}{}", val, t];
