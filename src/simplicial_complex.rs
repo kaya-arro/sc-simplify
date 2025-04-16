@@ -50,22 +50,20 @@ impl SimplicialComplex {
     }
 
     pub fn maximalify(&mut self) {
-        let facets = &mut self.facets;
-        match facets.len() {
-            0 => facets.push(Simplex::default()),
-            _ => {
-                facets.sort_by(|a, b| b.len().cmp(&a.len()));
-                let mut face_holder = new_vec::<Simplex>(facets.len());
-                face_holder.append(facets);
-                for face in face_holder.into_iter() {
-                    if !facets.iter().any(
-                        |facet| face <= *facet
-                    ) {
-                        facets.push(face);
-                    }
+        if self.facets.is_empty() {
+            self.facets.push(Simplex::default())
+        } else {
+            self.facets.sort_by(|a, b| b.len().cmp(&a.len()));
+            let mut face_holder = new_vec::<Simplex>(self.facets.len());
+            face_holder.append(&mut self.facets);
+            for face in face_holder.into_iter() {
+                if !self.facets.iter().any(
+                    |facet| face <= *facet
+                ) {
+                    self.facets.push(face);
                 }
-                facets.shrink_to_fit();
             }
+            self.facets.shrink_to_fit();
         }
     }
 
@@ -437,17 +435,17 @@ impl SimplicialComplex {
         contractible
     }
 
-    pub fn cofaces(&self, s: &Simplex) -> Vec<Simplex> {
-        // Is there a good heuristic for the capacity to use?
-        let mut cb = new_hs::<u32>(1);
-        for f in self.facets.iter().filter(|f| s <= f) {
-            cb.extend(f.0.iter().filter(|v| !s.contains(v)));
-        }
-
-        let mut res = new_vec::<Simplex>(cb.len());
-        res.extend(cb.into_iter().map(|v| s.add_vertex(&v)));
-        res
-    }
+    // pub fn cofaces(&self, s: &Simplex) -> Vec<Simplex> {
+    //     // Is there a good heuristic for the capacity to use?
+    //     let mut cb = new_hs::<u32>(1);
+    //     for f in self.facets.iter().filter(|f| s <= f) {
+    //         cb.extend(f.0.iter().filter(|v| !s.contains(v)));
+    //     }
+    //
+    //     let mut res = new_vec::<Simplex>(cb.len());
+    //     res.extend(cb.into_iter().map(|v| s.add_vertex(&v)));
+    //     res
+    // }
 
     pub fn relabel_vertices(&mut self) {
         let vertex_set = self.vertex_set();
