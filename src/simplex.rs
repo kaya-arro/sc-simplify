@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 use std::fmt;
-use std::fmt::Display;
 
-use crate::{BitAnd, Default, BTreeSet, HashSet, new_hs, new_vec, to_vec, to_rev_sorted_vec};
+use crate::{BitAnd, Default, Display};
+use crate:: {BTreeSet, HashSet, new_hs, new_vec, to_vec, to_sorted_vec, to_rev_sorted_vec};
 use std::ops::{BitOr, Sub};
 use std::hash::{Hash, Hasher};
 
@@ -10,18 +10,10 @@ use std::hash::{Hash, Hasher};
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Simplex(pub HashSet<u32>);
 
-
-// impl Default for Simplex {
-//     fn default() -> Self {
-//         Self(new_hs::<u32>(0))
-//     }
-// }
-
-// Considering making the BTreeSet an attribute so it doesn't have to be recalculated each time the
-// simplex is hashed.
+// Considering making tuple an attribute so this doesn't have to be recalculated all the time.
 impl Hash for Simplex {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.iter().collect::<BTreeSet<&u32>>().hash(state);
+        self.tuple().hash(state);
     }
 }
 
@@ -122,7 +114,7 @@ impl Simplex {
     }
 
     pub fn tuple(&self) -> Vec<u32> {
-        to_rev_sorted_vec(&self.0)
+        to_sorted_vec(&self.0)
     }
 
     pub fn faces(&self) -> Vec<Self> {
@@ -143,7 +135,7 @@ impl Simplex {
 }
 
 
-// We make a new struct so that we can use a different ORd
+// We make a new struct so that we can use a different Ord
 #[derive(Clone, PartialEq, Eq)]
 pub struct PrettySimplex(Vec<u32>);
 

@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::default::Default;
 use std::ops::BitAnd;
 use std::collections::BTreeSet;
@@ -5,7 +7,7 @@ use std::io::{stderr, IsTerminal};
 use std::collections::VecDeque;
 use std::rc::Rc;
 use std::cmp::min;
-use std::time::Duration;
+use std::fmt::Display;
 
 mod simplex;
 use simplex::{Simplex, PrettySimplex};
@@ -22,8 +24,8 @@ use cli::Cli;
 
 use indicatif::ProgressBar;
 mod io;
-use io::the_sty;
-use io::{heading_style, update_style, info_style, info_number_style};
+use io::{new_pb, new_spnr};
+use io::{head_sty, upd_sty, info_sty_str, info_sty_num};
 use io::{sc_info, read_input, write_sc, write_s_complex, write_chain_complex};
 
 use rustc_hash::FxBuildHasher;
@@ -60,6 +62,13 @@ fn to_vec<T: Copy>(s: &HashSet<T>) -> Vec<T> {
 fn to_rev_sorted_vec(set: &HashSet<u32>) -> Vec<u32> {
     let mut vec = to_vec(&set);
     vec.sort_unstable_by(|a, b| b.cmp(a));
+
+    vec
+}
+
+fn to_sorted_vec(set: &HashSet<u32>) -> Vec<u32> {
+    let mut vec = to_vec(&set);
+    vec.sort_unstable();
 
     vec
 }
@@ -109,15 +118,11 @@ fn main() {
             }
         } else {
             // There is no need to perform checks if we reduce.
+            if !quiet { eprintln!["\n{}", head_sty("Applying Čech nerves:")]; }
             let nerve_count = sc.reduce(quiet);
             if !quiet && nerve_count > 0 {
-                eprint![
-                    "{} {} {}",
-                    info_style().apply_to("After reducing with Čech nerves"),
-                    info_number_style().apply_to(format!["{}", nerve_count]),
-                    info_style().apply_to("times, "),
-                ];
-                sc_info(&sc, "the complex");
+                eprintln!["\n"];
+                sc_info(&sc, "After reducing, the complex");
             }
         }
 
@@ -128,7 +133,7 @@ fn main() {
             while repeat {
                 repeat = false;
 
-                if !quiet { eprintln!["{}", heading_style().apply_to("Pinching edges:")]; }
+                if !quiet { eprintln!["{}", head_sty("Pinching edges:")]; }
                 while sc.pinch(quiet) {
                     repeat = true;
                     sc.relabel_vertices();
@@ -137,7 +142,7 @@ fn main() {
                 sc = sc.nerve();
                 if !quiet {
                     eprintln!["\n"];
-                    eprintln!["{}", heading_style().apply_to("Pinching edges of Čech nerve:")];
+                    eprintln!["{}", head_sty("Pinching edges of Čech nerve:")];
                 }
                 while sc.pinch(quiet) {
                     repeat = true;
@@ -149,40 +154,43 @@ fn main() {
             }
 
             sc.reduce(true);
-            if !quiet { eprintln!["{}", heading_style().apply_to("Collapsing faces:")]; }
+            if !quiet { eprintln!["{}", head_sty("Collapsing faces:")]; }
             while sc.collapse(quiet) { }
             if !quiet { eprintln!["\n"]; }
         } else {
             let mut i = cli.max_pinch_loops;
             if i > 0 {
-                if !quiet { eprintln!["{}", heading_style().apply_to("Pinching edges:")]; }
+                if !quiet { eprintln!["{}", head_sty("Pinching edges:")]; }
                 while i > 0 && sc.pinch(quiet) {
                     i -= 1;
                     // The pinch algorithm uses an ordering of the vertices for efficiency. Relabeling the
                     // vertices helps shake things up and allow further pinches.
                     sc.relabel_vertices();
                 }
-                if !quiet { eprintln!["\n"] }
+                if !quiet && i < cli.max_pinch_loops {
+                    eprintln!["\n"];
+                    sc_info(&sc, "After pinching, the complex");
+                }
             }
             i = cli.max_collapse_loops;
             if i > 0 {
-                if !quiet { eprintln!["{}", heading_style().apply_to("Collapsing faces:")]; }
+                if !quiet { eprintln!["\n{}", head_sty("Collapsing faces:")]; }
                 while i > 0 && sc.collapse(quiet) { i -= 1; }
-                if !quiet { eprintln!["\n"] }
+                if !quiet && i < cli.max_collapse_loops {
+                    eprintln!["\n"];
+                    sc_info(&sc, "After collapsing, the complex");
+                }
             }
         }
 
         if cli.no_pair {
             write_sc(&sc, xml);
-            if !quiet { sc_info(&sc, "The simplified complex"); }
         } else {
             write_sc(&sc, xml);
 
             let mut contractible = SimplicialComplex::default();
             if sc.first_len() > 0 {
-                if !quiet {
-                    eprintln!["{}", heading_style().apply_to("Accreting subcomplex:")];
-                }
+                if !quiet { eprintln!["\n{}", head_sty("Accreting subcomplex:")]; }
 
                 contractible = sc.contractible_subcomplex(quiet);
 
@@ -192,11 +200,10 @@ fn main() {
 
             if !quiet {
                 eprintln!["\n"];
-                sc_info(&sc, "The simplified complex");
                 if sc.first_len() > 0 {
                     sc_info(&contractible, "The contractible subcomplex");
                 } else {
-                    eprintln!["{}", info_style().apply_to("The empty complex contains no contractible subcomplex.")]
+                    eprintln!["{}", info_sty_str("The empty complex contains no contractible subcomplex.")]
                 }
             }
         }

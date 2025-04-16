@@ -1,45 +1,60 @@
 use std::io::{stdin, BufRead};
+use std::sync::LazyLock;
+use std::time::Duration;
 
-use indicatif::ProgressStyle;
-use console::Style;
+use indicatif::{ProgressStyle, ProgressBar};
+use console::{Style, StyledObject};
 
+use crate::Display;
 use crate::{HashSet, new_vec};
 use crate::{SimplicialComplex, SComplex, Simplex, PrettySimplex};
 use crate::{Rc, HashMap};
 
-// A template for indicatif progress bars
-pub fn the_sty() -> ProgressStyle {
-    ProgressStyle::with_template(
-        "[{elapsed_precise}]  {msg:<24} [{bar:50}] {pos:>7}/{len:<7} {eta:>5} left"
-    )
-    .unwrap()
-    .progress_chars("=> ")
+pub fn new_pb(n: usize) -> ProgressBar {
+    let pb = ProgressBar::new(n as u64);
+    pb.set_style(ProgressStyle::with_template(
+            "[{elapsed_precise}]  {msg:<24} [{bar:50}] {pos:>7}/{len:<7} {eta:>5} left"
+        ).expect("The progress indicator template is invalid").progress_chars("=> ")
+    );
+
+    pb
+}
+
+pub fn new_spnr() -> ProgressBar {
+    let spnr = ProgressBar::new_spinner();
+    spnr.enable_steady_tick(Duration::from_millis(100));
+    spnr.set_style(ProgressStyle::with_template(
+            "[{elapsed_precise}]  {msg:<24} {spinner}"
+        ).expect("The progress indicator template is invalid")
+    );
+
+    spnr
 }
 
 
 // Text styles for console output
-pub fn heading_style() -> Style {
-    let sty = Style::new().for_stderr().cyan().bold();
+const HEAD_STY: LazyLock<Style> = LazyLock::new(|| Style::new().for_stderr().cyan().bold());
 
-    sty
+const UPD_STY: Style = Style::new().for_stderr().cyan().bright();
+
+const INFO_STR_STY: LazyLock<Style> = LazyLock::new(|| Style::new().for_stderr().white().italic());
+
+const INFO_NUM_STY: Style = Style::new().for_stderr().yellow().bright();
+
+pub fn head_sty<S: Display>(text: S) -> StyledObject<String> {
+    HEAD_STY.apply_to(text.to_string())
 }
 
-pub fn update_style() -> Style {
-    let sty = Style::new().for_stderr().cyan().bright();
-
-    sty
+pub fn upd_sty<S: Display>(text: S) -> String {
+    format!["{}", UPD_STY.apply_to(text.to_string())]
 }
 
-pub fn info_style() -> Style {
-    let sty = Style::new().for_stderr().white().italic();
-
-    sty
+pub fn info_sty_str<S: Display>(text: S) -> StyledObject<String> {
+    INFO_STR_STY.apply_to(text.to_string())
 }
 
-pub fn info_number_style() -> Style {
-    let sty = Style::new().for_stderr().yellow().bright();
-
-    sty
+pub fn info_sty_num<S: Display>(n: S) -> StyledObject<String> {
+    INFO_NUM_STY.apply_to(n.to_string())
 }
 
 
@@ -47,11 +62,11 @@ pub fn info_number_style() -> Style {
 pub fn sc_info(sc: &SimplicialComplex, name: &str) {
     eprintln![
         "{} {} {} {} {}",
-        info_style().apply_to(format!["{name} contains"]),
-        info_number_style().apply_to(format!["{}", sc.vertex_set().len()]),
-        info_style().apply_to("vertices and"),
-        info_number_style().apply_to(format!["{}", sc.facets.len()]),
-        info_style().apply_to("facets"),
+        info_sty_str(format!["{name} contains"]),
+        info_sty_num(sc.vertex_set().len()),
+        info_sty_str("vertices and"),
+        info_sty_num(sc.facets.len()),
+        info_sty_str("facets"),
     ];
 }
 

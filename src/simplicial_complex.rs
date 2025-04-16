@@ -1,9 +1,9 @@
 use crate::min;
-use crate::Duration;
 use crate::{BitAnd, Default};
 
-use crate::{ProgressBar, update_style, info_style, info_number_style, the_sty};
-use crate::{HashSet, new_hs, new_hm, new_vec, new_vd, to_rev_sorted_vec};
+use crate::{ProgressBar, new_pb, new_spnr};
+use crate::{upd_sty, info_sty_str, info_sty_num};
+use crate::{HashSet, new_hs, new_hm, new_vec, new_vd, to_sorted_vec, to_rev_sorted_vec};
 use crate::{Rc, HashMap, VecDeque};
 use crate::{Simplex, SComplex};
 
@@ -127,19 +127,13 @@ impl SimplicialComplex {
     // user's edification.
     pub fn reduce(&mut self, quiet: bool) -> usize {
         let mut n = 0usize;
-        let pb: ProgressBar;
+        let spnr: ProgressBar;
         if quiet {
-            pb = ProgressBar::hidden();
+            spnr = ProgressBar::hidden();
         } else {
-            pb = ProgressBar::new_spinner();
-            pb.enable_steady_tick(Duration::from_millis(100));
-            pb.set_message(
-                format![
-                    "{} {} {}",
-                    info_style().apply_to("Simplified with Čech nerves"),
-                           info_number_style().apply_to(format!["{}", n]),
-                           info_style().apply_to("times."),
-                ]
+            spnr = new_spnr();
+            spnr.set_message(
+                upd_sty(format!["Reduced with Čech nerves {n} times"])
             );
         }
 
@@ -162,20 +156,13 @@ impl SimplicialComplex {
                 n += 1;
 
                 if !quiet {
-                    pb.set_message(
-                        format![
-                            "{} {} {}",
-                            info_style().apply_to("Simplified with Čech nerves"),
-                                   info_number_style().apply_to(format!["{}", n]),
-                                   info_style().apply_to("times."),
-                        ]
-                    );
+                    spnr.set_message(upd_sty(format!["Simplified with Čech nerves {n} times"]));
                 }
             }
             if n % 2 != 0 {
                 *self = nerve;
             }
-            pb.finish_and_clear();
+            spnr.finish();
 
             n
     }
@@ -220,26 +207,18 @@ impl SimplicialComplex {
     }
 
     fn enlarge_in_supercomplex(&mut self, supercomplex: &Self, care: bool, quiet: bool) -> bool {
-        let mut n = 0usize;
-        let pb: ProgressBar;
+        let fc = supercomplex.facets.len();
+        let mut n = self.facets.len();
+        let spnr: ProgressBar;
         if quiet {
-            pb = ProgressBar::hidden();
+            spnr = ProgressBar::hidden();
         } else {
-            pb = ProgressBar::new_spinner();
-            pb.enable_steady_tick(Duration::from_millis(100));
-            pb.set_message(
-                format![
-                    "{} {} {}",
-                    info_style().apply_to("Added"),
-                           info_number_style().apply_to(format!["{}", n]),
-                           info_style().apply_to("facets to the subcomplex."),
-                ]
-            );
+            spnr = new_spnr();
+            spnr.set_message(upd_sty(format!["Added {n} of {fc} facets to the subcomplex"]));
         }
 
         let check: bool = care && !self.facets.iter().all(|f| supercomplex.facets.contains(f));
 
-        let fc = supercomplex.facets.len();
         let mut queue = new_vd::<&Simplex>(fc);
         let mut rem = new_vd::<&Simplex>(fc);
         rem.extend(&supercomplex.facets);
@@ -268,13 +247,8 @@ impl SimplicialComplex {
                 self.facets.push(facet.clone());
                 if !quiet {
                     n += 1;
-                    pb.set_message(
-                        format![
-                            "{} {} {}",
-                            info_style().apply_to("Added"),
-                                   info_number_style().apply_to(format!["{}", n]),
-                                   info_style().apply_to("facets to the subcomplex."),
-                        ]
+                    spnr.set_message(
+                        upd_sty(format!["Added {n} of {fc} facets to the subcomplex"])
                     );
                 }
                 let mut i = 0;
@@ -292,8 +266,7 @@ impl SimplicialComplex {
                 rem.push_back(facet);
             }
         }
-
-        pb.finish();
+        spnr.finish();
 
         if check {
             self.maximalify();
@@ -321,8 +294,17 @@ impl SimplicialComplex {
         link_sets.into_iter().map(|s| Self { facets: s.1.into_iter().collect() } ).collect()
     }
 
-    // Returns vec holding (v, s) where v is a vertex and s is vec of edges less than v connected
-    // to v.
+    fn pinch_check(&self, old: u32, new: u32) -> bool {
+        let mut triple = self.links(vec![
+            Simplex::from([old]),
+                                    Simplex::from([new]),
+                                    Simplex::from([old, new]),
+        ]);
+        let intersection = &triple[0] & &triple[1];
+
+        triple[2].is_deformation_retract(&intersection)
+    }
+
     fn edge_table(&self) -> Vec<(u32,Vec<u32>)> {
         let first_len = self.first_len();
         if first_len < 2 {
@@ -334,7 +316,7 @@ impl SimplicialComplex {
         }
 
         // Set up edges_map
-        let vertex_vec = to_rev_sorted_vec(&self.vertex_set());
+        let vertex_vec = to_sorted_vec(&self.vertex_set());
         let vert_count = vertex_vec.len();
         let mut edges_map = new_hm::<u32, HashSet<u32>>(vert_count);
 
@@ -345,17 +327,19 @@ impl SimplicialComplex {
         for facet in &self.facets {
             let len = facet.len();
             let tuple = facet.tuple();
-            for i in 0..len - 1 {
+            for i in 1..len {
                 if let Some(edge_set) = edges_map.get_mut(&tuple[i]) {
-                    edge_set.extend((i + 1..len).map(|j| tuple[j]));
-                };
+                    edge_set.extend(&tuple[0..i]);
+                }
             }
         }
         let mut edge_vec = new_vec::<(u32, Vec<u32>)>(vert_count);
         for v in vertex_vec {
             let v_edge_set = &edges_map[&v];
-            let v_edge_vec = to_rev_sorted_vec(v_edge_set);
-            edge_vec.push((v, v_edge_vec));
+            if !v_edge_set.is_empty() {
+                let v_edge_vec = to_sorted_vec(v_edge_set);
+                edge_vec.push((v, v_edge_vec));
+            }
         }
 
         return edge_vec
@@ -364,7 +348,7 @@ impl SimplicialComplex {
     pub fn pinch(&mut self, quiet: bool) -> bool {
         let mut pinched = false;
 
-        let edges = self.edge_table();
+        let mut edges = self.edge_table();
         let vert_count: usize = edges.len();
 
         let mut n: usize;
@@ -374,41 +358,22 @@ impl SimplicialComplex {
         if quiet {
             pb = ProgressBar::hidden();
         } else {
-            pb = ProgressBar::new(vert_count as u64);
-            pb.set_style(the_sty());
-            pb.set_message(
-                format!["{}", update_style().apply_to(format!["Pinched {n} edges"])]
-            );
+            pb = new_pb(vert_count);
+            pb.set_message(upd_sty(format!["Pinched {n} edges"]));
         }
 
-        for entry in edges {
+        while let Some((old, mut adj)) = edges.pop() {
             pb.inc(1);
 
-            let old = entry.0;
-            let adj_edges = entry.1;
-
-            for new in adj_edges {
-
-                let triple = self.links(vec![
-                    Simplex::from([old]),
-                                        Simplex::from([new]),
-                                        Simplex::from([old, new]),
-                ]);
-                let o_link = &triple[0];
-                let n_link = &triple[1];
-                let mut e_link = triple[2].clone();
-                let intersection = o_link & n_link;
-                if e_link.is_deformation_retract(&intersection) {
+            while let Some(new) = adj.pop() {
+                // eprintln!["old: {old}; new: {new}"];
+                if self.pinch_check(old, new) {
                     for facet in &mut self.facets {
-                        if facet.remove(&old) {
-                            facet.insert(&new);
-                        }
+                        facet.remove(&old) && facet.insert(&new);
                     }
 
                     n += 1;
-                    pb.set_message(
-                        format!["{}", update_style().apply_to(format!["Pinched {n} edges"])]
-                    );
+                    pb.set_message(upd_sty(format!["Pinched {n} edges"]));
 
                     pinched = true;
                     break;
@@ -417,7 +382,7 @@ impl SimplicialComplex {
         }
         pb.finish();
 
-        *self = Self::from_check(self.facets.clone());
+        self.maximalify();
         pinched
     }
 
@@ -432,11 +397,8 @@ impl SimplicialComplex {
         if quiet {
             pb = ProgressBar::hidden();
         } else {
-            pb = ProgressBar::new(p_len as u64);
-            pb.set_style(the_sty());
-            pb.set_message(
-                format!["{}", update_style().apply_to(format!["Collapsed {n} faces"])]
-            );
+            pb = new_pb(p_len);
+            pb.set_message(upd_sty(format!["Collapsed {n} faces"]));
         }
 
         for facet in facets.clone() {
@@ -453,9 +415,7 @@ impl SimplicialComplex {
 
                     collapsed = true;
                     n += 1;
-                    pb.set_message(
-                        format!["{}", update_style().apply_to(format!["Collapsed {n} faces"])]
-                    );
+                    pb.set_message(upd_sty(format!["Collapsed {n} faces"]));
 
                     break;
                 }
