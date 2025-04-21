@@ -1,6 +1,6 @@
 [package]
 name = "sc-simplify"
-version = "2.0.0"
+version = "3.0.0"
 authors = ["Kaya Arro"]
 edition = "2024"
 description = "Takes a simplicial complex and returns a smaller complex or pair of the same homotopy type"
