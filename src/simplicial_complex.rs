@@ -54,9 +54,6 @@ impl SimplicialComplex {
         if self.facets.is_empty() {
             self.facets.push(Simplex::default());
         } else {
-            // Benchmark the two versions.
-            // let mut face_holder = new_vec::<Simplex>(self.facet_count());
-            // swap(&mut self.facets, &mut face_holder);
             let mut face_holder = take(&mut self.facets);
             face_holder.sort_by_key(|f| Reverse(f.len()));
 
