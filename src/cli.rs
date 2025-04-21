@@ -11,9 +11,6 @@ use crate::Parser;
 /// in which X has the homotopy type of the input and C is a large contractible subcomplex of X.
 /// The complexes X and C are delineated by a blank line.
 pub struct Cli {
-    #[arg(short, long, default_value_t = false)]
-    pub morse_complex: bool,
-
     /// Check that the faces in the input are maximal.
     ///
     /// Depending on other settings used, input including non-maximal faces may cause unexpected
@@ -40,25 +37,12 @@ pub struct Cli {
     /// homotopy type and contracts them. Successive runs provide diminishing returns. The program
     /// will always stop pinching once there are no longer any edges that can be contracted.
     ///
-    /// Use `0` to disable pinching.
+    /// It is highly unlikely that increasing this parameter beyond the default value of `2` will
+    /// expedite homology calculations.
+    ///
+    /// Use `0` to disable pinching entirely.
     #[arg(short = 'P', long, default_value_t = 2, value_name = "MAX")]
     pub max_pinch_loops: usize,
-
-    /// Specify the maximum number of times to run the "collapse" algorithm.
-    ///
-    /// The "collapse" algorithm collapses free faces of the complex. It is not usually useful for
-    /// accelerating calculations of homotopy invariants, so it is disabled by default.
-    #[arg(short = 'C', long, default_value_t = 0, value_name = "MAX")]
-    pub max_collapse_loops: usize,
-
-    /// Spend extra time trying to minimize the number of vertices.
-    ///
-    /// Beware that this flag is inadvisable if your goal is to speed up calculations of homotopy
-    /// invariants. It may be of interest from a combinatorial perspective. Also note that this
-    /// setting minimizes the number of vertices, it often increases the total number of cells in
-    /// the output complex.
-    #[arg(short, long, default_value_t = false)]
-    pub thorough: bool,
 
     /// Only print the simplified input.
     ///
@@ -70,6 +54,17 @@ pub struct Cli {
     #[arg(short = 'p', long, default_value_t = false)]
     pub no_pair: bool,
 
+    /// Skip minimizing the output pair by removing shared facets from both.
+    ///
+    /// If this flag is not enabled, the program will return a pair of complexes homotopy
+    /// equivalent as a pair  to the input complex but such that the first complex in the pair
+    /// on its own is unlikely to share the homotopy type of the input.
+    ///
+    /// If this flag is enabled, the program will instead return a simplicial complex that is
+    /// homotopy equivalent to the input along with a large contractible subcomplex.
+    #[arg(short = 'm', long, default_value_t = false)]
+    pub skip_minimize_pair: bool,
+
     /// Print the output in XML format for parsing by the GAP simpcomp package.
     ///
     /// If you are using simpcomp to calculate properties of your complex, you can enable this flag
@@ -80,5 +75,4 @@ pub struct Cli {
     /// Suppress the progress indicators.
     #[arg(short, long, default_value_t = false)]
     pub quiet: bool,
-
 }
