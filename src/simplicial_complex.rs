@@ -7,7 +7,6 @@ use crate::upd_sty;
 use crate::{HashSet, new_hm, new_hs, new_vd, new_vec, to_sorted_vec};
 use crate::{ProgressBar, new_pb, new_spnr};
 
-// #[derive(PartialEq, Eq)]
 pub struct SimplicialComplex {
     pub facets: Vec<Simplex>,
 }
@@ -90,8 +89,6 @@ impl SimplicialComplex {
 
     pub fn vertex_set(&self) -> HashSet<u32> {
         let fc = self.facet_count();
-        // Benchmark this capacity
-        // Make sure this doesn't break with the empty complex
         let cap = (fc as f32).powf((self.height() as f32 - 1.0).recip()) as usize;
 
         let mut vertex_set = self.facets.iter().fold(new_hs::<u32>(cap), |mut f, g| {
@@ -104,11 +101,6 @@ impl SimplicialComplex {
     }
 
     fn intersection_with_simplex(&self, other: &Simplex) -> Self {
-        // Try using collect here instead
-        // let mut int_faces = new_hs::<Simplex>(self.facet_count());
-        // int_faces.extend(self.facets.iter().map(|f| f & other));
-
-        // Self::from_check(int_faces.into_iter().collect())
         Self::from_check(
             self.facets
                 .iter()

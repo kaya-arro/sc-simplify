@@ -1,8 +1,5 @@
-// use std::iter::once;
-
 use crate::{BitAnd, Default, Ordering};
 use crate::{HashSet, to_sorted_vec};
-// use crate::BTreeSet;
 use std::hash::{Hash, Hasher};
 use std::ops::Sub;
 
@@ -80,10 +77,6 @@ impl Simplex {
     pub fn insert(&mut self, item: &u32) -> bool {
         self.vertices.insert(*item)
     }
-
-    // fn add_vertex(&self, item: &u32) -> Self {
-    //     Self::from_iter(self.vertices.iter().copied().chain(once(*item)))
-    // }
 
     pub fn remove(&mut self, item: &u32) -> bool {
         self.vertices.remove(item)
