@@ -65,13 +65,6 @@ pub struct Cli {
     #[arg(short = 'm', long, default_value_t = false)]
     pub skip_minimize_pair: bool,
 
-    /// Print the output in XML format for parsing by the GAP simpcomp package.
-    ///
-    /// If you are using simpcomp to calculate properties of your complex, you can enable this flag
-    /// to print the output in a format that can then be loaded into GAP with `SCLoadXML`.
-    #[arg(short, long, default_value_t = false)]
-    pub xml: bool,
-
     /// Suppress the progress indicators.
     #[arg(short, long, default_value_t = false)]
     pub quiet: bool,

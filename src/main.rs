@@ -1,88 +1,45 @@
-use std::cmp::{Ordering, Reverse, min};
-use std::collections::VecDeque;
-use std::default::Default;
-use std::fmt::Display;
-use std::io::{IsTerminal, stderr};
-use std::ops::BitAnd;
-use std::time::Duration;
-
-mod simplex;
-use simplex::Simplex;
-
-mod simplicial_complex;
-use simplicial_complex::{SimplicialComplex, minimize_pair};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 
 use clap::Parser;
-mod cli;
-use cli::Cli;
+use ctrlc;
 
-use indicatif::ProgressBar;
-mod io;
-use io::{head_sty, info_sty_str, upd_sty};
-use io::{new_pb, new_spnr};
-use io::{read_input, sc_info, write_sc};
+use sc_simplify::io::{SC, read_input, sc_info, write_sc};
+use sc_simplify::{SimplicialComplex, Vertex};
 
-use rustc_hash::FxBuildHasher;
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+mod for_main;
+use for_main::{Cli, head_sty, info_sty_str};
 
-fn new_hs<T>(len: usize) -> HashSet<T> {
-    HashSet::with_capacity_and_hasher(len, FxBuildHasher::default())
+fn pair_write<Point: Vertex>(sc: &SimplicialComplex<Point>, bnd: &SimplicialComplex<Point>) {
+    write_sc(sc);
+    println![];
+    write_sc(bnd);
 }
 
-fn new_hm<S, T>(len: usize) -> HashMap<S, T> {
-    HashMap::with_capacity_and_hasher(len, FxBuildHasher::default())
-}
+fn simplify<Point: Vertex>(mut sc: SimplicialComplex<Point>, cli: Cli) {
+    let interrupted = Arc::new(AtomicBool::new(false));
+    let intrpt = interrupted.clone();
 
-fn new_vec<T>(len: usize) -> Vec<T> {
-    Vec::<T>::with_capacity(len)
-}
+    ctrlc::set_handler(move || {
+        intrpt.store(true, Ordering::SeqCst);
+    })
+    .expect("Error setting Ctrl-C handler");
 
-fn new_vd<T>(len: usize) -> VecDeque<T> {
-    VecDeque::<T>::with_capacity(len)
-}
+    let quiet = cli.quiet;
 
-fn to_vec<T: Copy>(s: &HashSet<T>) -> Vec<T> {
-    let mut v = new_vec::<T>(s.len());
-    v.extend(s);
-
-    v
-}
-
-fn to_sorted_vec(set: &HashSet<u32>) -> Vec<u32> {
-    let mut vec = to_vec(&set);
-    vec.sort_unstable();
-
-    vec
-}
-
-fn main() {
-    let cli = Cli::parse();
-
-    let mut sc = read_input();
-
-    let quiet = cli.quiet || !stderr().is_terminal();
-
-    let xml = cli.xml;
-
-    if !quiet {
-        sc_info(&sc, "The original complex");
-    }
-
-    if cli.skip_nerve {
+    if cli.skip_nerve || interrupted.load(Ordering::Relaxed) {
         // Check if taking nerves is actually faster than checking this way
         if cli.check_input {
-            sc = SimplicialComplex::from_check(sc.facets);
-        } else {
-            // Even if we don't check the input, we check the first facet because it's cheap and
-            // important.
-            sc.facets.select_nth_unstable_by_key(0, Simplex::len);
+            sc.maximalify();
         }
     } else {
         // There is no need to perform checks if we reduce.
         if !quiet {
             eprintln!["\n{}", head_sty("Applying Čech nerves:")];
         }
-        let nerve_count = sc.reduce(quiet);
+        let nerve_count = sc.nerve_reduce(quiet);
         if !quiet {
             eprintln![];
             if nerve_count > 0 {
@@ -97,11 +54,11 @@ fn main() {
         if !quiet {
             eprintln!["\n{}", head_sty("Pinching edges:")];
         }
-        while i > 0 && sc.pinch(quiet) {
+        while i > 0
+            && !interrupted.load(Ordering::Relaxed)
+            && sc.pinch(Some(interrupted.clone()), quiet)
+        {
             i -= 1;
-            // The pinch algorithm uses an ordering of the vertices for efficiency. Relabeling the
-            // vertices helps shake things up and allow further pinches.
-            sc.relabel_vertices();
         }
         if !quiet {
             eprintln![];
@@ -112,16 +69,15 @@ fn main() {
         }
     }
 
-    if cli.no_pair {
-        write_sc(&sc, xml);
+    if cli.no_pair || interrupted.load(Ordering::Relaxed) {
+        write_sc(&sc);
     } else {
-        let contractible: SimplicialComplex;
         if sc.height() > 0 {
             if !quiet {
                 eprintln!["\n{}", head_sty("Accreting contractible subcomplex:")];
             }
 
-            contractible = sc.contractible_subcomplex(quiet);
+            let contractible = sc.contractible_subcomplex(quiet);
 
             if !quiet {
                 eprintln!["\n"];
@@ -135,18 +91,28 @@ fn main() {
                 }
             }
 
-            let first: SimplicialComplex;
-            let second: SimplicialComplex;
-
             if cli.skip_minimize_pair {
-                (first, second) = (sc, contractible);
+                pair_write(&sc, &contractible);
             } else {
-                (first, second) = minimize_pair((sc, contractible));
+                if !quiet {
+                    eprintln!["\n{}", head_sty("Minimizing pair:")];
+                }
+                let bnd = sc.minimize_pair(contractible);
+                if !quiet {
+                    eprintln!["\n"];
+                    sc_info(&sc, "After minimizing, the complex");
+                    sc_info(&bnd, "The subcomplex");
+                }
+                pair_write(&sc, &bnd);
             }
-
-            write_sc(&first, xml);
-            println![];
-            write_sc(&second, xml);
         }
+    }
+}
+
+fn main() {
+    let cli = Cli::parse();
+    match read_input(cli.quiet) {
+        SC::Small(sc) => simplify(sc, cli),
+        SC::Large(sc) => simplify(sc, cli),
     }
 }

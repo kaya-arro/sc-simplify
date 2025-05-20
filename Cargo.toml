@@ -9,7 +9,12 @@ description = "Takes a simplicial complex and returns a smaller complex or pair 
 [dependencies]
 clap = { version = "4.5.34", features = ["cargo", "derive", "wrap_help"] }
 console = "0.15.11"
+ctrlc = "3.4.6"
+hashbrown = { version = "0.15.3", features = ["nightly", "rayon", "rustc-dep-of-std", "core", "compiler_builtins", "alloc"] }
 indicatif = "0.17.11"
+itertools = "0.14.0"
+num = "0.4.3"
+rayon = "1.10.0"
 rustc-hash = "2.1.1"
 
 
@@ -23,9 +28,10 @@ opt-level = 3
 overflow-checks = true
 lto = "fat"
 codegen-units = 1
+strip = true
 
 
 [profile.profiling]
 inherits = "release"
 debug = true
-strip = "none"
+strip = false
