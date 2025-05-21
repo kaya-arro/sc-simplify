@@ -131,16 +131,17 @@ impl<Point: Vertex> SimplicialComplex<Point> {
     }
 
     // Make privateable
-    #[inline]
+
     pub fn sortify(&mut self) {
         self.facets.sort_unstable_by_key(|s| Reverse(s.len()))
     }
 
     // Make privateable
-    #[inline]
+
     fn uniqueify(&mut self) {
         let unique_facets: SCHashSet<Face<Point>> = self.facets.drain(..).collect();
         self.facets.extend(unique_facets);
+        self.shrink_to_fit();
     }
 
     // Make privateable
@@ -149,73 +150,74 @@ impl<Point: Vertex> SimplicialComplex<Point> {
             self.facets.push(Face::<Point>::default());
         } else {
             self.sortify();
+            if self.facets[0].len() == self.facets.last().unwrap().len() {
+                return;
+            }
 
             let mut i = 1;
             while i < self.len() {
-                let face = &self.facets[i];
+                let face: Vec<Point> = self.facets[i].iter().collect();
+                let len = face.len();
                 if self
                     .iter()
-                    .take_while(|f| f.len() > face.len())
-                    .any(|f| face.leq(f))
+                    .take_while(|f| f.len() > len)
+                    .any(|f| face.iter().all(|v| f.contains(*v)))
                 {
                     self.facets.remove(i);
                 } else {
                     i += 1;
                 }
             }
+
+            self.shrink_to_fit();
         }
     }
 
-    #[inline]
     pub fn height(&self) -> usize {
         self.facets[0].len()
     }
 
-    #[inline]
     pub fn len(&self) -> usize {
         self.facets.len()
     }
 
-    #[inline]
     pub fn shrink_to_fit(&mut self) {
         self.facets.shrink_to_fit();
     }
 
-    #[inline]
     pub fn has_face(&self, simplex: &Face<Point>) -> bool {
-        self
-            .into_iter()
-            .take_while(|facet| facet.len() >= simplex.len())
-            .any(|facet| simplex.leq(facet))
+        let face_vec = simplex.to_vec();
+        let len = face_vec.len();
+
+        self.into_iter()
+            .take_while(|facet| facet.len() >= len)
+            .any(|facet| face_vec.iter().all(|v| facet.contains(*v)))
     }
 
-    #[inline]
     pub fn iter(&self) -> Iter<Face<Point>> {
         self.into_iter()
     }
 
-    #[inline]
     pub fn iter_mut(&mut self) -> IterMut<Face<Point>> {
         self.into_iter()
     }
 
     pub fn vertex_set(&self) -> SCHashSet<Point> {
         let facet_count = self.len();
-        let cap = (facet_count as f32).powf((self.height().max(2) as f32 - 1.0).recip()) as usize;
+        let cap = (facet_count as f32).powf((self.height().min(2) as f32 - 1.0).recip()) as usize;
 
-        let vertex_set = self.facets.iter().fold(new_hs::<Point>(cap), |mut f, g| {
+        let mut vertex_set = self.facets.iter().fold(new_hs::<Point>(cap), |mut f, g| {
             f.extend(g.iter());
             f
         });
+        vertex_set.shrink_to_fit();
 
         vertex_set
     }
 
-    #[inline]
     fn intersection_with_simplex(&self, simplex: &Face<Point>) -> Self {
         Self::from_check_maximal(
-            self
-                .into_iter()
+            self.into_iter()
                 .filter_map(|f| f.maybe_intersection(simplex))
                 .collect::<SCHashSet<Face<Point>>>(),
         )
@@ -383,7 +385,9 @@ impl<Point: Vertex> SimplicialComplex<Point> {
         let other_facets = &mut other.facets;
 
         let mut queue = new_vd::<Face<Point>>(facet_count);
-        queue.extend(other_facets.extract_if(.., |of| !self.facets.iter().all(|sf| of.is_disjoint(sf))));
+        queue.extend(
+            other_facets.extract_if(.., |of| !self.facets.iter().all(|sf| of.is_disjoint(sf))),
+        );
 
         while let Some(facet) = queue.pop_front() {
             let intrsct = self.intersection_with_simplex(&facet);
@@ -418,13 +422,11 @@ impl<Point: Vertex> SimplicialComplex<Point> {
         other_facets.is_empty()
     }
 
-    #[inline]
     fn is_deformation_retract(&mut self, other: &mut Self) -> bool {
         self.enlarge_from_complex(other, false, true)
         // retract_test(self.iter().collect(), other.iter().collect())
     }
 
-    #[inline]
     fn edge_table(&self) -> Vec<(Point, Vec<Point>)> {
         let height = self.height();
         if height < 2 {
@@ -436,9 +438,11 @@ impl<Point: Vertex> SimplicialComplex<Point> {
         }
 
         // Set up edges_map
-        let vert_vec = to_sorted_vec(&self.vertex_set());
-        let mut edges_map: SCHashMap<Point, SCHashSet<Point>> =
-            vert_vec.par_iter().map(|&v| (v, new_hs(height))).collect();
+        let mut edges_map: SCHashMap<Point, SCHashSet<Point>> = self
+            .vertex_set()
+            .into_par_iter()
+            .map(|v| (v, new_hs(height.pow(2))))
+            .collect();
 
         self.iter().map(|f| f.tuple()).for_each(|tuple| {
             (1..tuple.len()).for_each(|i| {
@@ -510,7 +514,9 @@ impl<Point: Vertex> SimplicialComplex<Point> {
 
                 let mut edge_link_facets: Vec<&Face<Point>> =
                     edge_link.iter().map(|i| &self.facets[*i]).collect();
-                edge_link_facets.par_sort_unstable_by_key(|f| Reverse(f.len()));
+                edge_link_facets.sort_by_key(|f| Reverse(f.len()));
+
+                // edge_link.sort_by_key(|i| Reverse(self.facets[*i].len()));
 
                 let pre_int_faces: SCHashSet<Face<Point>> = new_link_ext
                     .par_iter()
@@ -521,7 +527,10 @@ impl<Point: Vertex> SimplicialComplex<Point> {
                             .filter_map(|old_idx| {
                                 self.facets[*old_idx].maybe_intersection(&self.facets[new_idx])
                             })
-                            .filter(|int_face| !has_face(&edge_link_facets, int_face))
+                            .filter(|int_face| {
+                                !has_face(edge_link_facets.iter().map(|s| *s), int_face)
+                                // !has_face(edge_link.iter().map(|i| &self.facets[*i]), int_face)
+                            })
                             .collect::<SCHashSet<Face<Point>>>()
                     })
                     .reduce(
@@ -535,34 +544,38 @@ impl<Point: Vertex> SimplicialComplex<Point> {
                 if pre_int_faces.is_empty()
                     || retract_test(
                         edge_link_facets,
+                        // edge_link.iter().map(|i| &self.facets[*i]).collect(),
                         Self::from_check_maximal(pre_int_faces.iter().cloned())
                             .facets
                             .iter()
                             .collect(),
                     )
                 {
-                    let mut new_link_ext_facets: Vec<&Face<Point>> =
-                        new_link_ext.iter().map(|i| &self.facets[*i]).collect();
-                    new_link_ext_facets.par_sort_unstable_by_key(|f| Reverse(f.len()));
-
+                    new_link_ext.sort_by_key(|i| Reverse(self.facets[*i].len()));
                     let mut to_remove = new_vec::<usize>(old_link_ext.len().isqrt());
 
-                    old_link_ext.extend(edge_link);
-                    to_remove.extend(old_link_ext.extract_if(.., |i| {
-                        let facet = &self.facets[*i];
-                        pre_int_faces.contains(facet) || has_face(&new_link_ext_facets, facet)
-                    }));
-
-                    drop(new_link_ext_facets);
-                    new_link_ext.extend(old_link_ext);
+                    old_link_ext
+                        .into_iter()
+                        .chain(edge_link.into_iter())
+                        .for_each(|i| {
+                            let face = &self.facets[i];
+                            if pre_int_faces.contains(face)
+                                || has_face(new_link_ext.iter().map(|j| &self.facets[*j]), face)
+                            {
+                                to_remove.push(i);
+                            } else {
+                                self.facets[i].insert(new);
+                            }
+                        });
+                    drop(pre_int_faces);
 
                     for i in new_link_ext {
                         self.facets[i].insert(new);
                     }
 
                     to_remove.sort_unstable_by_key(|i| Reverse(*i));
-                    for i in &to_remove {
-                        self.facets.swap_remove(*i);
+                    for i in to_remove {
+                        self.facets.swap_remove(i);
                     }
 
                     n += 1;
@@ -571,6 +584,8 @@ impl<Point: Vertex> SimplicialComplex<Point> {
                     pinched = true;
                     break;
                 } else {
+                    drop(pre_int_faces);
+
                     for i in edge_link {
                         self.facets[i].insert(old);
                         self.facets[i].insert(new);
@@ -600,7 +615,6 @@ impl<Point: Vertex> SimplicialComplex<Point> {
         pinched
     }
 
-    #[inline]
     fn first_facet_to_complex(&mut self) -> Self {
         Self::from_iter([self.facets.remove(0)])
     }
@@ -671,26 +685,25 @@ fn retract_test<'a, Point: Vertex>(
     rem.is_empty()
 }
 
-#[inline]
 fn intersection_with_simplex<Point: Vertex>(
     sc: &Vec<&Face<Point>>,
     facet: &Face<Point>,
 ) -> SimplicialComplex<Point> {
     SimplicialComplex::from_check_maximal(
-        sc
-            .into_iter()
+        sc.into_iter()
             .filter_map(|f| f.maybe_intersection(facet))
             .collect::<SCHashSet<Face<Point>>>(),
     )
 }
 
-#[inline]
-fn has_face<Point:Vertex>(
-    facets: &Vec<&Face<Point>>,
-    face: &Face<Point>,
+fn has_face<'a, Point: Vertex>(
+    facets: impl IntoIterator<Item = &'a Face<Point>>,
+    face: &'a Face<Point>,
 ) -> bool {
+    let face_vec = face.to_vec();
+    let len = face_vec.len();
     facets
         .into_iter()
-        .take_while(|facet| facet.len() >= face.len())
-        .any(|facet| face.leq(facet))
+        .take_while(|facet| facet.len() >= len)
+        .any(|facet| face_vec.iter().all(|v| facet.contains(*v)))
 }

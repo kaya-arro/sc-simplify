@@ -1,6 +1,6 @@
 [package]
 name = "sc-simplify"
-version = "3.0.0"
+version = "3.0.1"
 authors = ["Kaya Arro"]
 edition = "2024"
 description = "Takes a simplicial complex and returns a smaller complex or pair of the same homotopy type"
@@ -10,7 +10,6 @@ description = "Takes a simplicial complex and returns a smaller complex or pair 
 clap = { version = "4.5.34", features = ["cargo", "derive", "wrap_help"] }
 console = "0.15.11"
 ctrlc = "3.4.6"
-hashbrown = { version = "0.15.3", features = ["nightly", "rayon", "rustc-dep-of-std", "core", "compiler_builtins", "alloc"] }
 indicatif = "0.17.11"
 itertools = "0.14.0"
 num = "0.4.3"

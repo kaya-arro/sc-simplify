@@ -81,6 +81,7 @@ impl<Point: Vertex> BitAndAssign for Face<Point> {
             swap(self, &mut rhs);
             self.vertices.retain(|v| rhs.contains(*v));
         }
+        self.shrink_to_fit();
     }
 }
 
@@ -211,7 +212,6 @@ impl<Point: Vertex> Face<Point> {
     }
 
     // Returns None if the intersection is empty, Some(intersection) otherwise.
-    // Avoids wastefully creating an empty face when that would be undesired/unneeded.
     pub fn maybe_intersection(&self, other: &Self) -> Option<Self> {
         let res = self.intersection(other);
         if res.is_empty() { None } else { Some(res) }
@@ -221,8 +221,12 @@ impl<Point: Vertex> Face<Point> {
         Self::from(self | other)
     }
 
+    pub fn to_vec(&self) -> Vec<Point> {
+        self.into()
+    }
+
     pub fn tuple(&self) -> Vec<Point> {
-        let mut tuple = Vec::<Point>::from(self);
+        let mut tuple = self.to_vec();
         tuple.sort_unstable();
 
         tuple
@@ -233,16 +237,16 @@ impl<Point: Vertex> Face<Point> {
     }
 
     pub fn vertex_removed(&self, v: Point) -> Self {
-        let mut vertices = self.vertices.clone();
-        vertices.remove(&v);
+        let mut res = self.clone();
+        res.remove(v);
 
-        Self { vertices }
+        res
     }
 
     pub fn vertex_inserted(&self, v: Point) -> Self {
         let mut vertices = self.vertices.clone();
         vertices.insert(v);
 
-        Self { vertices }
+        Self::from(vertices)
     }
 }
