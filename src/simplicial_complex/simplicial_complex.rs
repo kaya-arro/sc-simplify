@@ -200,7 +200,7 @@ impl<Point: Vertex> SimplicialComplex<Point> {
 
     pub fn vertex_set(&self) -> SCHashSet<Point> {
         let facet_count = self.len();
-        let cap = (facet_count as f32).powf((self.height().min(2) as f32 - 1.0).recip()) as usize;
+        let cap = (facet_count as f32).powf((self.height().max(2) as f32 - 1.0).recip()) as usize;
 
         let mut vertex_set = self.facets.iter().fold(new_hs::<Point>(cap), |mut f, g| {
             f.extend(g.iter());
