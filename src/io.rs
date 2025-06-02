@@ -1,7 +1,6 @@
 use std::io::{BufRead, stdin};
 use std::time::Duration;
 
-use crate::Ordering;
 use crate::Vertex;
 use crate::style::{info_sty_num, info_sty_str};
 use crate::{Face, SimplicialComplex};
@@ -34,6 +33,7 @@ pub fn new_spnr() -> ProgressBar {
 }
 
 // Print formatted text to the console about the number of vertices and facets of a complex.
+// pub fn sc_info<Point: Vertex>(sc: &SimplicialComplex<Point>, name: &str) {
 pub fn sc_info<Point: Vertex>(sc: &SimplicialComplex<Point>, name: &str) {
     eprintln![
         "{} {} {} {} {}",
@@ -84,6 +84,7 @@ pub fn read_input(quiet: bool) -> SC {
     }
 
     drop(stdin);
+
     max = max.max(
         facets
             .len()
@@ -116,36 +117,24 @@ pub fn read_input(quiet: bool) -> SC {
 }
 
 pub fn write_sc<Point: Vertex>(sc: &SimplicialComplex<Point>) {
-    let mut facets_vec: Vec<Vec<Point>> = sc
-        .into_iter()
-        .map(|s| {
-            let mut vec = Vec::<Point>::from(s);
-            vec.sort_unstable_by(|a, b| b.cmp(a));
-
-            vec
-        })
-        .collect();
+    let mut facets_vec: Vec<Vec<Point>> = sc.into_iter().map(|s| s.to_vec()).collect();
     // Benchmark sorting unstable instead
     // `sort_by_key` should work here with Reverse, but the sad facet is that it doesn't. It
     // gives lifetime issues.
     facets_vec.sort_by(|a, b| {
-        if a.len() < b.len() {
-            Ordering::Greater
-        } else if a.len() > b.len() {
-            Ordering::Less
-        } else if a < b {
-            Ordering::Greater
+        if a.len() != b.len() {
+            b.len().cmp(&a.len())
         } else {
-            Ordering::Less
+            b.cmp(a)
         }
     });
-    // facets_vec.sort_by_key(|f| (Reverse(f.len()), Reverse(f)));
 
-    // One more than the greatest vertex label: we should subtract but only if legal
-    let mut l = facets_vec[0][0];
-    if l > Point::zero() {
-        l -= Point::one();
-    }
+    let l = facets_vec
+        .first()
+        .expect("Even empty complexes should have one facet")
+        .first()
+        .copied()
+        .unwrap_or(Point::zero());
     // The number of digits in the greatest vertex label
     let d = l.to_string().len();
     for f in facets_vec {

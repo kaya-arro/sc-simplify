@@ -92,6 +92,9 @@ fn simplify<Point: Vertex>(mut sc: SimplicialComplex<Point>, cli: Cli) {
             }
 
             if cli.skip_minimize_pair {
+                sc = SimplicialComplex::<Point>::from_iter(
+                    sc.into_iter().chain(contractible.iter().cloned()),
+                );
                 pair_write(&sc, &contractible);
             } else {
                 if !quiet {
@@ -111,6 +114,7 @@ fn simplify<Point: Vertex>(mut sc: SimplicialComplex<Point>, cli: Cli) {
 
 fn main() {
     let cli = Cli::parse();
+
     match read_input(cli.quiet) {
         SC::Small(sc) => simplify(sc, cli),
         SC::Large(sc) => simplify(sc, cli),

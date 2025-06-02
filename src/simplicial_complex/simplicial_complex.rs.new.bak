@@ -1,9 +1,13 @@
+use std::collections::BTreeMap;
+use std::iter::{chain, once};
+use std::ops::Bound::Excluded;
 use std::slice::{Iter, IterMut};
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
 };
 
+use itertools::Itertools;
 use rayon::prelude::*;
 
 use super::BitAnd;
@@ -14,6 +18,7 @@ use crate::helpers::{SCHashMap, SCHashSet, new_hm, new_hs, new_vd, new_vec, to_s
 use crate::io::{new_pb, new_spnr};
 use crate::style::upd_sty;
 use crate::{Debug, Default, Reverse, fmt, max};
+// use crate::min;
 
 use crate::Face;
 
@@ -175,6 +180,10 @@ impl<Point: Vertex> SimplicialComplex<Point> {
 
     pub fn height(&self) -> usize {
         self.facets[0].len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.height() == 0
     }
 
     pub fn len(&self) -> usize {
@@ -461,12 +470,15 @@ impl<Point: Vertex> SimplicialComplex<Point> {
         edges_vec
     }
 
-    // Consider something clever to keep things sorted?
+    // Note: a much simpler solution to the sorting problem would be to start by partitioning
+    // self.facets by length, turning the slices into distinct vecs, and working with those.
+    // E.g. a BTreeMap<usize, Vec<Face<Point>>>. `swap_remove` won't cause problems and shrinking
+    // will be easy to handle by moving simplices from one vec to another.
     pub fn pinch(&mut self, intrpt: Option<Arc<AtomicBool>>, quiet: bool) -> bool {
-        let mut interrupted = false;
-        if interrupted {
+        if self.is_empty() || intrpt.as_ref().is_some_and(|s| s.load(Ordering::Relaxed)) {
             return false;
         }
+        let mut interrupted = false;
         let mut pinched = false;
 
         let edges = self.edge_table();
@@ -481,6 +493,22 @@ impl<Point: Vertex> SimplicialComplex<Point> {
             pb.set_message(upd_sty(format!["Pinched {n} edges"]));
         }
 
+        // `(len, idx)` in `breaks` means that `idx` is the index of the last facet with length
+        // `len`.
+        let mut breaks = BTreeMap::<usize, usize>::new();
+        // Keeping track of the most recent break makes the binary search faster.
+        let mut last_break = self.len();
+        let mut len = self.facets[last_break - 1].len();
+        breaks.insert(len, last_break - 1);
+        while len < self.height() {
+            last_break = self.facets[..last_break].partition_point(|f| f.len() > len);
+            // We only index the lengths that actually appear.
+            len = self.facets[last_break - 1].len();
+            breaks.insert(len, last_break - 1);
+        }
+        let _ = last_break;
+        let _ = len;
+
         'outer: for (old, adj) in edges {
             pb.inc(1);
 
@@ -490,8 +518,7 @@ impl<Point: Vertex> SimplicialComplex<Point> {
                     break 'outer;
                 }
 
-                // This is is an arbitrary estimate
-                let cap = self.len().isqrt().isqrt();
+                let cap = self.len().isqrt();
                 let mut edge_link = new_vec::<usize>(cap);
                 let mut old_link_ext = new_vec::<usize>(cap);
                 let mut new_link_ext = new_vec::<usize>(cap);
@@ -512,11 +539,8 @@ impl<Point: Vertex> SimplicialComplex<Point> {
                     }
                 }
 
-                let mut edge_link_facets: Vec<&Face<Point>> =
-                    edge_link.iter().map(|i| &self.facets[*i]).collect();
-                edge_link_facets.sort_by_key(|f| Reverse(f.len()));
-
-                // edge_link.sort_by_key(|i| Reverse(self.facets[*i].len()));
+                // Should be able to remove; included for debugging
+                edge_link.sort_by_key(|i| Reverse(self.facets[*i].len()));
 
                 let pre_int_faces: SCHashSet<Face<Point>> = new_link_ext
                     .par_iter()
@@ -528,8 +552,7 @@ impl<Point: Vertex> SimplicialComplex<Point> {
                                 self.facets[*old_idx].maybe_intersection(&self.facets[new_idx])
                             })
                             .filter(|int_face| {
-                                !has_face(edge_link_facets.iter().map(|s| *s), int_face)
-                                // !has_face(edge_link.iter().map(|i| &self.facets[*i]), int_face)
+                                !has_face(edge_link.iter().map(|i| &self.facets[*i]), int_face)
                             })
                             .collect::<SCHashSet<Face<Point>>>()
                     })
@@ -541,42 +564,145 @@ impl<Point: Vertex> SimplicialComplex<Point> {
                         },
                     );
 
+                // This is the actually test if the edge can be pinched.
                 if pre_int_faces.is_empty()
                     || retract_test(
-                        edge_link_facets,
-                        // edge_link.iter().map(|i| &self.facets[*i]).collect(),
+                        edge_link.iter().map(|i| &self.facets[*i]).collect(),
                         Self::from_check_maximal(pre_int_faces.iter().cloned())
                             .facets
                             .iter()
                             .collect(),
                     )
                 {
+                    // Should be able to remove; included for debugging
                     new_link_ext.sort_by_key(|i| Reverse(self.facets[*i].len()));
-                    let mut to_remove = new_vec::<usize>(old_link_ext.len().isqrt());
 
-                    old_link_ext
-                        .into_iter()
-                        .chain(edge_link.into_iter())
-                        .for_each(|i| {
-                            let face = &self.facets[i];
-                            if pre_int_faces.contains(face)
-                                || has_face(new_link_ext.iter().map(|j| &self.facets[*j]), face)
-                            {
-                                to_remove.push(i);
-                            } else {
-                                self.facets[i].insert(new);
-                            }
-                        });
-                    drop(pre_int_faces);
+                    // Facets in edge_link will be removed or will remain with one fewer element.
+                    // In either case we need to re-sort them, but how we do so will depend on
+                    // which of these actions occurs. Hence we keep things organized with these
+                    // different vecs.
 
-                    for i in new_link_ext {
+                    // We have to build ancillary vecs because we want to use parallelism for
+                    // performance, but a ParallelIterator cannot mutate captured values.
+
+                    // We partition a vec of indices into one of facets to keep (add `new`) and one
+                    // of facets to remove.
+                    let check_remove = |vec: Vec<usize>| {
+                        let mut checked: Vec<(usize, bool)> = vec
+                            .into_par_iter()
+                            .map(|i| {
+                                let face = &self.facets[i];
+                                let res = pre_int_faces.contains(face)
+                                    || has_face(
+                                        new_link_ext.iter().map(|j| &self.facets[*j]),
+                                        face,
+                                    );
+
+                                (i, res)
+                            })
+                            .collect();
+
+                        let keep: Vec<usize> =
+                            checked.extract_if(.., |p| !p.1).map(|p| p.0).collect();
+                        let remove: Vec<usize> = checked.into_iter().map(|p| p.0).collect();
+
+                        (keep, remove)
+                    };
+
+                    let (mut edge_link_keep, edge_link_remove) = check_remove(edge_link);
+                    let (old_link_keep, old_link_remove) = check_remove(old_link_ext);
+
+                    // For the facets we aren't removing, we (re)insert `new`.
+                    chain(old_link_keep.into_iter(), new_link_ext.into_iter()).for_each(|i| {
                         self.facets[i].insert(new);
-                    }
+                    });
 
-                    to_remove.sort_unstable_by_key(|i| Reverse(*i));
-                    for i in to_remove {
+                    edge_link_keep.sort_unstable_by_key(|i| Reverse(*i));
+                    edge_link_keep.iter().for_each(|&i| {
+                        // The items of edge_link_keep have shrunk, which will cause some breaks to
+                        // move. Also, we can't re-sort them now because we still need to remove
+                        // some facets, and re-sorting could mess up the indexing.
+                        for (_, j) in &mut breaks {
+                            if *j > i {
+                                *j -= 1;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        self.facets[i].insert(new);
+                    });
+
+                    // What we're doing is complicated so we use semantic names.
+                    // The facets of edge_link we don't remove have shrunk, so we will need to
+                    // re-sort them.
+                    let mut edge_link_sort = edge_link_keep;
+                    // We'll pop the largest items of `edge_link_sort` if `swap_remove` moves them.
+                    edge_link_sort.sort_unstable();
+
+                    let mut to_remove = old_link_remove;
+                    to_remove.extend(edge_link_remove);
+                    // We begin removing from the back so that we don't mess up indices as we
+                    // remove.
+                    to_remove.sort_by_key(|i| Reverse(*i));
+                    let mut displaced = to_remove.clone();
+                    displaced.reverse();
+
+                    to_remove.into_iter().for_each(|i| {
+                        // If a facet in `edge_link_sort` is at the end of self.facets, it'll get
+                        // moved when we `swap_remove` so the index will be wrong, but that's fine
+                        // because it'll also get re-sorted when we re-sort the indices of
+                        // `to_remove`. We just need to `pop` the invalidated index from
+                        // `edge_link_sort`.
+                        if displaced.pop_if(|j| *j + 1 == self.len()) == None {
+                            edge_link_sort.pop_if(|j| *j + 1 == self.len());
+                        }
+
+                        // As we remove items, some breaks may shift, and we need to track
+                        // that for later when we re-sort.
+                        for (_, j) in &mut breaks {
+                            if *j > i {
+                                *j -= 1;
+                            } else {
+                                break;
+                            }
+                        }
+
                         self.facets.swap_remove(i);
-                    }
+                    });
+
+                    // Facets at indices in `to_remove` have been swapped in from the end, so they
+                    // must be re-sorted along with those in `edge_link_sort` that have shrunk.
+                    // We re-sort from the end in order to avoid messing up indices.
+                    edge_link_sort.reverse();
+                    displaced.reverse();
+                    chain(
+                        once(displaced.into_iter()),
+                        once(edge_link_sort.into_iter()),
+                    )
+                    .kmerge_by(|a, b| a > b)
+                    .for_each(|mut i| {
+                        let len = self.facets[i].len();
+                        let mut swaps = new_vec::<usize>(0);
+                        let mut cursor = breaks.lower_bound_mut(Excluded(&len));
+                        // If `len` is in `breaks`, its entry is the one right before `cursor`.
+                        let is_present = cursor.peek_prev().is_some_and(|p| *p.0 == len);
+                        while let Some((_, j)) = cursor.next()
+                            && *j >= i
+                        {
+                            swaps.push(*j);
+                            *j -= 1;
+                        }
+                        for j in swaps.into_iter().rev() {
+                            self.facets.swap(i, j);
+                            i = j;
+                        }
+                        // If the entry for `len` is missing (i.e. our facet is the first of
+                        // its length, we insert it).
+                        if !is_present {
+                            breaks.insert(len, i);
+                        }
+                    });
 
                     n += 1;
                     pb.set_message(upd_sty(format!["Pinched {n} edges"]));
@@ -601,8 +727,6 @@ impl<Point: Vertex> SimplicialComplex<Point> {
                 }
             }
         }
-
-        self.sortify();
 
         if !interrupted {
             pb.finish();

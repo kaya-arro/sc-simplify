@@ -1,5 +1,7 @@
 // use crate::{Rc, Hash};
 
+// use rayon::prelude::*;
+
 pub(crate) use rustc_hash::{FxBuildHasher as SCBuildHasher, FxHashMap as SCHashMap};
 pub(crate) use std::collections::VecDeque;
 

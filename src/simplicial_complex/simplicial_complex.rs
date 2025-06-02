@@ -1,8 +1,5 @@
 use std::slice::{Iter, IterMut};
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
+use std::sync::{Arc, atomic};
 
 use rayon::prelude::*;
 
@@ -156,12 +153,12 @@ impl<Point: Vertex> SimplicialComplex<Point> {
 
             let mut i = 1;
             while i < self.len() {
-                let face: Vec<Point> = self.facets[i].iter().collect();
+                let face: Vec<Point> = self.facets[i].iter().cloned().collect();
                 let len = face.len();
                 if self
                     .iter()
                     .take_while(|f| f.len() > len)
-                    .any(|f| face.iter().all(|v| f.contains(*v)))
+                    .any(|f| face.iter().all(|v| f.contains(v)))
                 {
                     self.facets.remove(i);
                 } else {
@@ -177,6 +174,10 @@ impl<Point: Vertex> SimplicialComplex<Point> {
         self.facets[0].len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.height() == 0
+    }
+
     pub fn len(&self) -> usize {
         self.facets.len()
     }
@@ -186,12 +187,7 @@ impl<Point: Vertex> SimplicialComplex<Point> {
     }
 
     pub fn has_face(&self, simplex: &Face<Point>) -> bool {
-        let face_vec = simplex.to_vec();
-        let len = face_vec.len();
-
-        self.into_iter()
-            .take_while(|facet| facet.len() >= len)
-            .any(|facet| face_vec.iter().all(|v| facet.contains(*v)))
+        has_face(self, &simplex.to_vec())
     }
 
     pub fn iter(&self) -> Iter<Face<Point>> {
@@ -217,7 +213,7 @@ impl<Point: Vertex> SimplicialComplex<Point> {
 
     fn intersection_with_simplex(&self, simplex: &Face<Point>) -> Self {
         Self::from_check_maximal(
-            self.into_iter()
+            self.iter()
                 .filter_map(|f| f.maybe_intersection(simplex))
                 .collect::<SCHashSet<Face<Point>>>(),
         )
@@ -234,6 +230,7 @@ impl<Point: Vertex> SimplicialComplex<Point> {
         }
 
         let mut int_faces = new_hs::<Face<Point>>(max(self.len(), other.len()));
+
         for facet in &self.facets {
             int_faces.extend(
                 other
@@ -251,7 +248,7 @@ impl<Point: Vertex> SimplicialComplex<Point> {
     fn nerve(&self) -> Self {
         Self::from_check_maximal(self.vertex_set().into_iter().map(|v| {
             (0..self.len())
-                .filter(|&i| self.facets[i].contains(v))
+                .filter(|&i| self.facets[i].contains(&v))
                 .map(|i| {
                     i.try_into()
                         .ok()
@@ -456,163 +453,9 @@ impl<Point: Vertex> SimplicialComplex<Point> {
             .map(|(v, s)| (v, to_sorted_vec(&s)))
             .collect();
 
-        edges_vec.sort_unstable_by_key(|(v, _)| crate::Reverse(*v));
+        edges_vec.sort_unstable_by_key(|(v, _)| Reverse(*v));
 
         edges_vec
-    }
-
-    // Consider something clever to keep things sorted?
-    pub fn pinch(&mut self, intrpt: Option<Arc<AtomicBool>>, quiet: bool) -> bool {
-        let mut interrupted = false;
-        if interrupted {
-            return false;
-        }
-        let mut pinched = false;
-
-        let edges = self.edge_table();
-        let vertex_count = edges.len();
-        let mut n: usize = 0;
-
-        let pb: ProgressBar;
-        if quiet {
-            pb = ProgressBar::hidden();
-        } else {
-            pb = new_pb(vertex_count);
-            pb.set_message(upd_sty(format!["Pinched {n} edges"]));
-        }
-
-        'outer: for (old, adj) in edges {
-            pb.inc(1);
-
-            for new in adj {
-                if intrpt.as_ref().is_some_and(|s| s.load(Ordering::Relaxed)) {
-                    interrupted = true;
-                    break 'outer;
-                }
-
-                // This is is an arbitrary estimate
-                let cap = self.len().isqrt().isqrt();
-                let mut edge_link = new_vec::<usize>(cap);
-                let mut old_link_ext = new_vec::<usize>(cap);
-                let mut new_link_ext = new_vec::<usize>(cap);
-
-                let relevant: Vec<(usize, bool, bool)> = self
-                    .facets
-                    .par_iter_mut()
-                    .enumerate()
-                    .map(|(i, facet)| (i, facet.remove(old), facet.remove(new)))
-                    .filter(|(_, old_bool, new_bool)| *old_bool || *new_bool)
-                    .collect();
-
-                for (i, old_bool, new_bool) in relevant {
-                    match (old_bool, new_bool) {
-                        (true, true) => edge_link.push(i),
-                        (true, _) => old_link_ext.push(i),
-                        _ => new_link_ext.push(i),
-                    }
-                }
-
-                let mut edge_link_facets: Vec<&Face<Point>> =
-                    edge_link.iter().map(|i| &self.facets[*i]).collect();
-                edge_link_facets.sort_by_key(|f| Reverse(f.len()));
-
-                // edge_link.sort_by_key(|i| Reverse(self.facets[*i].len()));
-
-                let pre_int_faces: SCHashSet<Face<Point>> = new_link_ext
-                    .par_iter()
-                    .copied()
-                    .map(|new_idx| {
-                        old_link_ext
-                            .iter()
-                            .filter_map(|old_idx| {
-                                self.facets[*old_idx].maybe_intersection(&self.facets[new_idx])
-                            })
-                            .filter(|int_face| {
-                                !has_face(edge_link_facets.iter().map(|s| *s), int_face)
-                                // !has_face(edge_link.iter().map(|i| &self.facets[*i]), int_face)
-                            })
-                            .collect::<SCHashSet<Face<Point>>>()
-                    })
-                    .reduce(
-                        || new_hs(0),
-                        |mut a, b| {
-                            a.extend(b);
-                            a
-                        },
-                    );
-
-                if pre_int_faces.is_empty()
-                    || retract_test(
-                        edge_link_facets,
-                        // edge_link.iter().map(|i| &self.facets[*i]).collect(),
-                        Self::from_check_maximal(pre_int_faces.iter().cloned())
-                            .facets
-                            .iter()
-                            .collect(),
-                    )
-                {
-                    new_link_ext.sort_by_key(|i| Reverse(self.facets[*i].len()));
-                    let mut to_remove = new_vec::<usize>(old_link_ext.len().isqrt());
-
-                    old_link_ext
-                        .into_iter()
-                        .chain(edge_link.into_iter())
-                        .for_each(|i| {
-                            let face = &self.facets[i];
-                            if pre_int_faces.contains(face)
-                                || has_face(new_link_ext.iter().map(|j| &self.facets[*j]), face)
-                            {
-                                to_remove.push(i);
-                            } else {
-                                self.facets[i].insert(new);
-                            }
-                        });
-                    drop(pre_int_faces);
-
-                    for i in new_link_ext {
-                        self.facets[i].insert(new);
-                    }
-
-                    to_remove.sort_unstable_by_key(|i| Reverse(*i));
-                    for i in to_remove {
-                        self.facets.swap_remove(i);
-                    }
-
-                    n += 1;
-                    pb.set_message(upd_sty(format!["Pinched {n} edges"]));
-
-                    pinched = true;
-                    break;
-                } else {
-                    drop(pre_int_faces);
-
-                    for i in edge_link {
-                        self.facets[i].insert(old);
-                        self.facets[i].insert(new);
-                    }
-
-                    for i in old_link_ext {
-                        self.facets[i].insert(old);
-                    }
-
-                    for i in new_link_ext {
-                        self.facets[i].insert(new);
-                    }
-                }
-            }
-        }
-
-        self.sortify();
-
-        if !interrupted {
-            pb.finish();
-
-            // The pinch algorithm is sensitive to the ordering of the vertices. Relabeling the
-            // vertices shakes things up to facilitate further pinches.
-            self.relabel_vertices();
-        }
-
-        pinched
     }
 
     fn first_facet_to_complex(&mut self) -> Self {
@@ -656,6 +499,173 @@ impl<Point: Vertex> SimplicialComplex<Point> {
     pub fn minimize_pair(&self, sub: Self) -> Self {
         (&*self).intersection_with_complex(&sub, false)
     }
+
+    pub fn pinch(&mut self, intrpt: Option<Arc<atomic::AtomicBool>>, quiet: bool) -> bool {
+        if self.is_empty()
+            || intrpt
+                .as_ref()
+                .is_some_and(|s| s.load(atomic::Ordering::Relaxed))
+        {
+            return false;
+        }
+        let mut interrupted = false;
+        let mut pinched = false;
+
+        let edges = self.edge_table();
+        let vertex_count = edges.len();
+        let mut n: usize = 0;
+
+        let pb: ProgressBar;
+        if quiet {
+            pb = ProgressBar::hidden();
+        } else {
+            pb = new_pb(vertex_count);
+            pb.set_message(upd_sty(format!["Pinched {n} edges"]));
+        }
+
+        rayon::ThreadPoolBuilder::new()
+            .stack_size(1024 * 1024 * 2)
+            .build()
+            .unwrap()
+            .install(|| {
+                'outer: for (old, adj) in edges {
+                    pb.inc(1);
+
+                    for new in adj {
+                        if intrpt
+                            .as_ref()
+                            .is_some_and(|s| s.load(atomic::Ordering::Relaxed))
+                        {
+                            interrupted = true;
+                            break 'outer;
+                        }
+
+                        let cap = self.len().isqrt();
+                        let mut edge_link = new_vec::<usize>(cap);
+                        let mut old_link_ext = new_vec::<usize>(cap);
+                        let mut new_link_ext = new_vec::<usize>(cap);
+                        let mut relevant = new_vec::<(usize, bool, bool)>(2 * cap);
+
+                        relevant.par_extend(
+                            self.facets
+                                .par_iter_mut()
+                                .enumerate()
+                                .map(|(i, facet)| (i, facet.remove(&old), facet.remove(&new)))
+                                .filter(|(_, old_bool, new_bool)| *old_bool || *new_bool),
+                        );
+
+                        for (i, old_bool, new_bool) in relevant {
+                            match (old_bool, new_bool) {
+                                (true, true) => edge_link.push(i),
+                                (true, _) => old_link_ext.push(i),
+                                _ => new_link_ext.push(i),
+                            }
+                        }
+
+                        edge_link.sort_by_key(|i| Reverse(self.facets[*i].len()));
+                        let pre_int_faces: SCHashSet<Face<Point>> = new_link_ext
+                            .par_iter()
+                            .copied()
+                            .map(|new_idx| {
+                                old_link_ext
+                                    .iter()
+                                    .filter_map(|old_idx| {
+                                        self.facets[*old_idx]
+                                            .maybe_intersection(&self.facets[new_idx])
+                                    })
+                                    .filter(|int_face| {
+                                        !has_face(
+                                            edge_link.iter().map(|i| &self.facets[*i]),
+                                            &int_face.to_vec(),
+                                        )
+                                    })
+                                    .collect::<SCHashSet<Face<Point>>>()
+                            })
+                            .reduce(
+                                || new_hs(0),
+                                |mut a, b| {
+                                    a.extend(b);
+                                    a
+                                },
+                            );
+
+                        if pre_int_faces.is_empty() || {
+                            let mut pre_int_facets: Vec<&Face<Point>> =
+                                pre_int_faces.iter().collect();
+                            maximalify(&mut pre_int_facets);
+                            retract_test(
+                                edge_link.iter().map(|i| &self.facets[*i]).collect(),
+                                pre_int_facets,
+                            )
+                        } {
+                            new_link_ext.sort_by_key(|i| Reverse(self.facets[*i].len()));
+                            old_link_ext.extend(edge_link);
+                            let mut rem_or_ins = new_vec::<(usize, bool)>(old_link_ext.len());
+                            rem_or_ins.par_extend(old_link_ext.into_par_iter().map(|i| {
+                                let face = &self.facets[i];
+
+                                (
+                                    i,
+                                    pre_int_faces.contains(face)
+                                        || has_face(
+                                            new_link_ext.iter().map(|j| &self.facets[*j]),
+                                            &face.to_vec(),
+                                        ),
+                                )
+                            }));
+
+                            drop(pre_int_faces);
+
+                            new_link_ext
+                                .into_iter()
+                                .chain(rem_or_ins.extract_if(.., |(_, b)| !*b).map(|p| p.0))
+                                .for_each(|i| {
+                                    self.facets[i].insert(new);
+                                });
+
+                            rem_or_ins.sort_unstable_by_key(|p| Reverse(p.0));
+                            rem_or_ins.into_iter().for_each(|(i, _)| {
+                                self.facets.swap_remove(i);
+                            });
+
+                            n += 1;
+                            pb.set_message(upd_sty(format!["Pinched {n} edges"]));
+
+                            pinched = true;
+                            break;
+                        } else {
+                            drop(pre_int_faces);
+
+                            let edge: Vec<Point> = vec![old, new];
+
+                            edge_link.into_iter().for_each(|i| {
+                                self.facets[i].extend(edge.iter().copied());
+                            });
+
+                            old_link_ext.into_iter().for_each(|i| {
+                                self.facets[i].insert(old);
+                            });
+
+                            new_link_ext.into_iter().for_each(|i| {
+                                self.facets[i].insert(new);
+                            });
+                        }
+                    }
+                }
+            });
+
+        self.sortify();
+
+        if !interrupted {
+            pb.finish();
+
+            // The pinch algorithm is sensitive to the ordering of the vertices. Relabeling the
+            // vertices shakes things up to facilitate further pinches.
+            self.relabel_vertices();
+        }
+
+        pinched
+    }
 }
 
 fn retract_test<'a, Point: Vertex>(
@@ -685,6 +695,28 @@ fn retract_test<'a, Point: Vertex>(
     rem.is_empty()
 }
 
+fn maximalify<Point: Vertex>(sc: &mut Vec<&Face<Point>>) {
+    sc.sort_unstable_by_key(|f| Reverse(f.len()));
+    if sc[0].len() == sc.last().unwrap().len() {
+        return;
+    }
+
+    let mut i = 1;
+    while i < sc.len() {
+        let face: Vec<Point> = sc[i].to_vec();
+        let len = face.len();
+        if sc
+            .iter()
+            .take_while(|f| f.len() > len)
+            .any(|f| face.iter().all(|v| f.contains(v)))
+        {
+            sc.remove(i);
+        } else {
+            i += 1;
+        }
+    }
+}
+
 fn intersection_with_simplex<Point: Vertex>(
     sc: &Vec<&Face<Point>>,
     facet: &Face<Point>,
@@ -696,14 +728,14 @@ fn intersection_with_simplex<Point: Vertex>(
     )
 }
 
-fn has_face<'a, Point: Vertex>(
+// &Face<Point> should become Item = &S where S: Simplex<Point = Point>
+fn has_face<'a, Point: Vertex + 'a>(
     facets: impl IntoIterator<Item = &'a Face<Point>>,
-    face: &'a Face<Point>,
+    face: &Vec<Point>,
 ) -> bool {
-    let face_vec = face.to_vec();
-    let len = face_vec.len();
+    let len = face.len();
     facets
         .into_iter()
         .take_while(|facet| facet.len() >= len)
-        .any(|facet| face_vec.iter().all(|v| facet.contains(*v)))
+        .any(|facet| face.into_iter().all(|v| facet.contains(v)))
 }

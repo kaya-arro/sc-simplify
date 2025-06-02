@@ -1,6 +1,6 @@
 // Flags for the compiler
 // #![feature(impl_trait_in_assoc_type)]
-#![feature(trait_alias, hash_set_entry)]
+#![feature(once_cell_get_mut, thread_local, hash_set_entry, btree_cursors, iter_chain)]
 
 // Resources shared between modules
 // from the std library
@@ -27,7 +27,8 @@ pub use partial_bijection_complex::partial_bijection_complex;
 pub use simplicial_complex::Face;
 pub use simplicial_complex::SimplicialComplex;
 
-pub trait Vertex = Default
+pub trait Vertex:
+    Default
     + Copy
     + Debug
     + Display
@@ -36,5 +37,24 @@ pub trait Vertex = Default
     + AddAssign
     + SubAssign
     + TryFrom<usize>
+    + TryInto<usize>
     + Send
-    + Sync;
+    + Sync
+{
+}
+
+impl<T> Vertex for T where
+    T: Default
+        + Copy
+        + Debug
+        + Display
+        + Hash
+        + Integer
+        + AddAssign
+        + SubAssign
+        + TryFrom<usize>
+        + TryInto<usize>
+        + Send
+        + Sync
+{
+}

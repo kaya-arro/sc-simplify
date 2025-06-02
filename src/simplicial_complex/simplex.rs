@@ -1,6 +1,6 @@
 use std::collections::hash_set::{IntoIter, Iter};
 use std::hash::{Hash, Hasher};
-use std::iter::{Copied, Extend};
+use std::iter::Extend;
 use std::mem::swap;
 use std::ops::{Sub, SubAssign};
 
@@ -57,9 +57,9 @@ impl<Point: Vertex> Hash for Face<Point> {
 impl<Point: Vertex> PartialOrd for Face<Point> {
     fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
         match self.len().cmp(&rhs.len()) {
-            Ordering::Equal if self.iter().all(|v| rhs.contains(v)) => Some(Ordering::Equal),
-            Ordering::Less if self.iter().all(|v| rhs.contains(v)) => Some(Ordering::Less),
-            Ordering::Greater if rhs.iter().all(|v| self.contains(v)) => Some(Ordering::Greater),
+            Ordering::Equal if self.iter().all(|v| rhs.contains(&v)) => Some(Ordering::Equal),
+            Ordering::Less if self.iter().all(|v| rhs.contains(&v)) => Some(Ordering::Less),
+            Ordering::Greater if rhs.iter().all(|v| self.contains(&v)) => Some(Ordering::Greater),
             _ => None,
         }
     }
@@ -75,12 +75,10 @@ impl<Point: Vertex> BitAnd for &Face<Point> {
 
 impl<Point: Vertex> BitAndAssign for Face<Point> {
     fn bitand_assign(&mut self, mut rhs: Self) {
-        if self.len() <= rhs.len() {
-            self.vertices.retain(|v| rhs.contains(*v));
-        } else {
+        if self.len() > rhs.len() {
             swap(self, &mut rhs);
-            self.vertices.retain(|v| rhs.contains(*v));
         }
+        self.vertices.retain(|v| rhs.contains(v));
         self.shrink_to_fit();
     }
 }
@@ -106,7 +104,7 @@ impl<Point: Vertex> BitOrAssign for Face<Point> {
 
 impl<Point: Vertex> BitOrAssign<&Face<Point>> for Face<Point> {
     fn bitor_assign(&mut self, rhs: &Face<Point>) {
-        self.extend(rhs.into_iter());
+        self.extend(rhs.into_iter().cloned());
     }
 }
 
@@ -119,7 +117,7 @@ impl<Point: Vertex> Sub for &Face<Point> {
         } else {
             let mut res = self.clone();
             for v in rhs {
-                res.remove(v);
+                res.remove(&v);
             }
             res.shrink_to_fit();
 
@@ -131,21 +129,21 @@ impl<Point: Vertex> Sub for &Face<Point> {
 impl<Point: Vertex> SubAssign<&Face<Point>> for Face<Point> {
     fn sub_assign(&mut self, rhs: &Face<Point>) {
         if self.len() <= rhs.len() {
-            self.vertices.retain(|v| !rhs.contains(*v));
+            self.vertices.retain(|v| !rhs.contains(v));
         } else {
             rhs.into_iter().for_each(|v| {
-                self.remove(v);
+                self.remove(&v);
             });
         }
     }
 }
 
 impl<'a, Point: Vertex> IntoIterator for &'a Face<Point> {
-    type Item = Point;
-    type IntoIter = Copied<Iter<'a, Point>>;
+    type Item = &'a Point;
+    type IntoIter = Iter<'a, Point>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.vertices.iter().copied()
+        self.vertices.iter()
     }
 }
 
@@ -166,7 +164,7 @@ impl<Point: Vertex> From<Face<Point>> for Vec<Point> {
 
 impl<Point: Vertex> From<&Face<Point>> for Vec<Point> {
     fn from(s: &Face<Point>) -> Self {
-        s.into_iter().collect()
+        s.into_iter().cloned().collect()
     }
 }
 
@@ -179,15 +177,15 @@ impl<Point: Vertex> Face<Point> {
         self.vertices.is_empty()
     }
 
-    pub fn contains(&self, item: Point) -> bool {
-        self.vertices.contains(&item)
+    pub fn contains(&self, item: &Point) -> bool {
+        self.vertices.contains(item)
     }
 
     pub fn len(&self) -> usize {
         self.vertices.len()
     }
 
-    pub fn iter(&self) -> Copied<Iter<Point>> {
+    pub fn iter(&self) -> Iter<Point> {
         self.into_iter()
     }
 
@@ -203,8 +201,8 @@ impl<Point: Vertex> Face<Point> {
         self.vertices.insert(item)
     }
 
-    pub fn remove(&mut self, item: Point) -> bool {
-        self.vertices.remove(&item)
+    pub fn remove(&mut self, item: &Point) -> bool {
+        self.vertices.remove(item)
     }
 
     pub fn intersection(&self, other: &Self) -> Self {
@@ -236,7 +234,7 @@ impl<Point: Vertex> Face<Point> {
         self.vertices = self.vertices.iter().map(|v| dict[v]).collect();
     }
 
-    pub fn vertex_removed(&self, v: Point) -> Self {
+    pub fn vertex_removed(&self, v: &Point) -> Self {
         let mut res = self.clone();
         res.remove(v);
 
