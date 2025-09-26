@@ -10,11 +10,9 @@ The primary motivation is to accelerate homology computations for extremely larg
 
 `sc-simplify` is fast, but so are other programs for homology computations. Even more than speed, `sc-simplify` aims for *memory efficiency*.
 
-Since the mid-to-late-2000s, the fastest algorithms for calculating the homology of simpicial complexes have preprocessed their input using the [discrete Morse theory](https://www.emis.de/journals/SLC/wpapers/s48forman.pdf) (DMT) developed by Forman and built upon by many others. `sc-simplify` does not use DMT and is consequently (in my testing) around three to six times slower than programs like [Perseus](https://people.maths.ox.ac.uk/nanda/perseus/) that do.
+Since the mid-to-late-2000s, the fastest algorithms for calculating the homology of simpicial complexes have preprocessed their input using the [discrete Morse theory](https://www.emis.de/journals/SLC/wpapers/s48forman.pdf) (DMT) developed by Forman and built upon by many others. A major drawback of DMT algorithms is that they typically must calculate all of the simplices of a simplicial complex before they can be simplifying it to calculate its homology. When the input complex is large and has high dimension, this makes calculations with DMT completely intractible.
 
-However, to use DMT, a program must typically store all of the cells of a complex in memory along with the values of a discrete Morse function, or at least its gradient discrete vector field. As a consequence, it can be intractible to use such algorithms with exceedingly large complexes unless one has access to implausibly large amounts of memory.
-
-In contrast, `sc-simplify` only needs to store the facets and edges of a complex in memory along with the facets of some short-lived and usually-not-gigantic subcomplexes. As a result, `sc-simplify` consumes substantially less memory than programs that utilize DMT while still enabling homology computations that are dramatically faster than calculating the homology directly without preprocessing.
+Because `sc-simplify` does not use DMT and only needs to calculate the edges of a simplicial complex (once the facets have been specified by the user), it uses orders of magnitude less memory than DMT algorithms while still being very fast: in my testing, `sc-simplify` is up to twice as fast as the DMT-based program [Perseus](https://people.maths.ox.ac.uk/nanda/perseus/).
 
 # Usage
 
@@ -96,11 +94,13 @@ The following steps are the default algorithm; they can be adjusted by passing v
 
 1. Take the Čech nerve of the input iteratively until no more simplifications occur and the dimension of the complex is less than or equal to that of its nerve.
 
-2. Identify edges that can be contracted without changing the homotopy type of the complex and contract them. Call the resulting complex $X$.
+2. Use the link condition to identify edges that can be contracted without changing the homotopy type of the complex and contract them. Call the resulting complex $X$.
 
 3. Construct a large contractible subcomplex $C$ of $X$.
 
 4. Remove the facets of $C$ from $X$ and take the intersection of this smaller complex with $C$ to obtain a new, smaller pair $(A, B)$ with the same homotopy type as the original input (but in which $B$ may not be contractible and therefore $A$ may be of a different homotopy type from the input).
+
+At this point, the idea is to feed the output of `sc-simplify` into another program, such as Sage, to calculate the relative homology of the pair, which will agree with the homology of the original input. In a future update, `sc-simplify` will be able to calculate the homology itself without the need for an auxiliary program for the final step.
 
 # Installation
 
@@ -126,7 +126,7 @@ The following steps are the default algorithm; they can be adjusted by passing v
 
 5. Optional: copy or link `sc-simplify.1.gz` into `/usr/share/man/man1/` so that `man sc-simplify` brings up the manual (see below for how to do this from the terminal).
 
-6. The binary can be found at `target/release/sc-simplify`. Link to it from your `PATH` with
+6. The binary can be found at `target/release/sc-simplify`. With your shell in the root directory of the repository, link to the binary from your `PATH` with
    
    ```bash
    sudo ln -s $(pwd)/target/release/sc-simplify /usr/bin/
@@ -138,11 +138,11 @@ The following steps are the default algorithm; they can be adjusted by passing v
    sudo cp target/release/sc-simplify /usr/bin/
    ```
    
-   or generally do whatever you want with the binary: it's yours!
+   or generally do whatever you want with the binary: it's yours! If you don't want to include it in your `PATH`, you can still run it by specifying the path to the binary in your command line.
 
 ## Portability
 
-Since the purpose of this program is efficiency, the `-C target-cpu=native`  `rustc` compile flag is enabled in `.cargo/config.toml`. This means that you may not be able to run the produced binary on a machine other than the one on which you built it (or at least a machine with the same processor). If you would like a more portable but possibly slower version of the program, comment out this flag.
+Since the purpose of this program is efficiency, the `-C target-cpu=native`  `rustc` compile flag is enabled in `.cargo/config.toml`. This means that you may not be able to run the produced binary on a machine other than the one on which you built it (or at least a machine with the same microarchitecture). If you would like a more portable but possibly slower version of the program, comment out this flag.
 
 # Development plans and hopes and dreams
 
@@ -152,25 +152,11 @@ Since the purpose of this program is efficiency, the `-C target-cpu=native`  `ru
 
 - [x] Make a progress bar.
 
-- [ ] Improve the documentation of individual methods and publish the crate as a library on crates.io.
-
-- [ ] Compile a binary to wasm so that users who do not wish to compile the program can use it.
-
 - [ ] Include examples in the repository.
 
-- [ ] Remove more excess cells created by `--thorough` by applying the collapse algorithm to remove cells of greater codimension than one.
+- [ ] Implement a flag to use a DMT algorithm to calculate homology over a field after the edge contraction step.
 
-- [ ] Maybe implement a flag to use a DMT algorithm.
-  
-  - The main motivation is simply the fact that a number of software packages implementing DMT algorithms seem no longer to be maintained. The Perseus binary is usable for me, but I have not been able to compile it myself; I am similarly unable to compile either CHomP or RedHom, and the DMT functions of `simpcomp` also give me errors.
-
-- [ ] Maybe someday implement integral simplicial homology in Rust, or use an existing crate that does?
-  
-  - Sage is pretty quick when taking homology with coefficients in a field. The main motivations to do this would be:
-    
-    - to accelerate the calculation of integral homology
-    
-    - to allow the use of a DMT algorithm that produces a Morse complex directly without having to hassle with exporting it to other software.
+- [ ] Possibly eventually implement integral homology.
 
 # Limitations
 
