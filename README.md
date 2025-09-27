@@ -122,7 +122,9 @@ At this point, the idea is to feed the output of `sc-simplify` into another prog
 
 3. Clone/download this repository.
 
-4. Execute `cargo build -r` in the root directory of the repository.
+4. Execute `cargo +nightly build -r` in the root directory of the repository.
+   
+   - The current version of `sc-simplify` uses some nightly features of Rust, but this will be changed in a future release.
 
 5. Optional: copy or link `sc-simplify.1.gz` into `/usr/share/man/man1/` so that `man sc-simplify` brings up the manual (see below for how to do this from the terminal).
 
