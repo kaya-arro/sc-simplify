@@ -10,7 +10,7 @@ The primary motivation is to accelerate homology computations for extremely larg
 
 `sc-simplify` is fast, but so are other programs for homology computations. Even more than speed, `sc-simplify` aims for *memory efficiency*.
 
-Since the mid-to-late-2000s, the fastest algorithms for calculating the homology of simpicial complexes have preprocessed their input using the [discrete Morse theory](https://www.emis.de/journals/SLC/wpapers/s48forman.pdf) (DMT) developed by Forman and built upon by many others. A major drawback of DMT algorithms is that they typically must calculate all of the simplices of a simplicial complex before they can be simplifying it to calculate its homology. When the input complex is large and has high dimension, this makes calculations with DMT completely intractible.
+Since the mid-to-late-2000s, the fastest algorithms for calculating the homology of simpicial complexes have preprocessed their input using the [discrete Morse theory](https://www.emis.de/journals/SLC/wpapers/s48forman.pdf) (DMT) developed by Forman and built upon by many others. A major drawback of DMT algorithms is that they typically must calculate all of the simplices of a simplicial complex before they can begin simplifying it to calculate its homology. When the input complex is large and has high dimension, this makes calculations with DMT completely intractible.
 
 Because `sc-simplify` does not use DMT and only needs to calculate the edges of a simplicial complex (once the facets have been specified by the user), it uses orders of magnitude less memory than DMT algorithms while still being very fast: in my testing, `sc-simplify` is up to twice as fast as the DMT-based program [Perseus](https://people.maths.ox.ac.uk/nanda/perseus/).
 
