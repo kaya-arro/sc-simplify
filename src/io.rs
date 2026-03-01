@@ -61,10 +61,10 @@ fn ambi_sc_info(asc: &SC, s: &str) {
 // Refactor this to handle the check
 pub fn read_input(quiet: bool) -> SC {
     let stdin = stdin();
-    let mut lines = stdin.lock().lines();
+    let lines = stdin.lock().lines();
     let mut max: u32 = 0;
     let mut facets = Vec::<Face<u32>>::new();
-    while let Some(line) = lines.next() {
+    for line in lines {
         let facet = line
             .expect("A complex should have at least one facet.")
             .split(" ")
@@ -82,8 +82,6 @@ pub fn read_input(quiet: bool) -> SC {
             facets.push(facet);
         }
     }
-
-    drop(stdin);
 
     max = max.max(
         facets

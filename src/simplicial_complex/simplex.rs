@@ -57,9 +57,9 @@ impl<Point: Vertex> Hash for Face<Point> {
 impl<Point: Vertex> PartialOrd for Face<Point> {
     fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
         match self.len().cmp(&rhs.len()) {
-            Ordering::Equal if self.iter().all(|v| rhs.contains(&v)) => Some(Ordering::Equal),
-            Ordering::Less if self.iter().all(|v| rhs.contains(&v)) => Some(Ordering::Less),
-            Ordering::Greater if rhs.iter().all(|v| self.contains(&v)) => Some(Ordering::Greater),
+            Ordering::Equal if self.iter().all(|v| rhs.contains(v)) => Some(Ordering::Equal),
+            Ordering::Less if self.iter().all(|v| rhs.contains(v)) => Some(Ordering::Less),
+            Ordering::Greater if rhs.iter().all(|v| self.contains(v)) => Some(Ordering::Greater),
             _ => None,
         }
     }
@@ -94,10 +94,10 @@ impl<Point: Vertex> BitOr for &Face<Point> {
 impl<Point: Vertex> BitOrAssign for Face<Point> {
     fn bitor_assign(&mut self, mut rhs: Self) {
         if self.len() >= rhs.len() {
-            self.vertices.extend(rhs.into_iter());
+            self.vertices.extend(rhs);
         } else {
             swap(self, &mut rhs);
-            self.extend(rhs.into_iter());
+            self.extend(rhs);
         }
     }
 }
@@ -117,7 +117,7 @@ impl<Point: Vertex> Sub for &Face<Point> {
         } else {
             let mut res = self.clone();
             for v in rhs {
-                res.remove(&v);
+                res.remove(v);
             }
             res.shrink_to_fit();
 
@@ -132,7 +132,7 @@ impl<Point: Vertex> SubAssign<&Face<Point>> for Face<Point> {
             self.vertices.retain(|v| !rhs.contains(v));
         } else {
             rhs.into_iter().for_each(|v| {
-                self.remove(&v);
+                self.remove(v);
             });
         }
     }
@@ -185,7 +185,7 @@ impl<Point: Vertex> Face<Point> {
         self.vertices.len()
     }
 
-    pub fn iter(&self) -> Iter<Point> {
+    pub fn iter(&self) -> Iter<'_, Point> {
         self.into_iter()
     }
 
@@ -216,7 +216,7 @@ impl<Point: Vertex> Face<Point> {
     }
 
     pub fn union(&self, other: &Self) -> Self {
-        Self::from(self | other)
+        self | other
     }
 
     pub fn to_vec(&self) -> Vec<Point> {

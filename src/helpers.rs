@@ -11,11 +11,11 @@ pub(crate) use rustc_hash::FxHashSet as SCHashSet;
 // pub(crate) type SCHashSet<T> = HashSet<T, SCBuildHasher>;
 
 pub(crate) fn new_hs<T>(len: usize) -> SCHashSet<T> {
-    SCHashSet::with_capacity_and_hasher(len, SCBuildHasher::default())
+    SCHashSet::with_capacity_and_hasher(len, SCBuildHasher)
 }
 
 pub(crate) fn new_hm<S, T>(len: usize) -> SCHashMap<S, T> {
-    SCHashMap::with_capacity_and_hasher(len, SCBuildHasher::default())
+    SCHashMap::with_capacity_and_hasher(len, SCBuildHasher)
 }
 
 pub(crate) fn new_vec<T>(len: usize) -> Vec<T> {

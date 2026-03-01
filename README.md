@@ -12,7 +12,7 @@ The primary motivation is to accelerate homology computations for extremely larg
 
 Since the mid-to-late-2000s, the fastest algorithms for calculating the homology of simpicial complexes have preprocessed their input using the [discrete Morse theory](https://www.emis.de/journals/SLC/wpapers/s48forman.pdf) (DMT) developed by Forman and built upon by many others. A major drawback of DMT algorithms is that they typically must calculate all of the simplices of a simplicial complex before they can begin simplifying it to calculate its homology. When the input complex is large and has high dimension, this makes calculations with DMT completely intractible.
 
-Because `sc-simplify` does not use DMT and only needs to calculate the edges of a simplicial complex (once the facets have been specified by the user), it uses orders of magnitude less memory than DMT algorithms while still being very fast: in my testing, `sc-simplify` is up to twice as fast as the DMT-based program [Perseus](https://people.maths.ox.ac.uk/nanda/perseus/).
+Because `sc-simplify` does not use DMT and only needs to calculate the edges of a simplicial complex (once the facets have been specified by the user), it uses orders of magnitude less memory than DMT algorithms while still being very fast.
 
 # Usage
 
@@ -154,18 +154,22 @@ Since the purpose of this program is efficiency, the `-C target-cpu=native`  `ru
 
 - [x] Make a progress bar.
 
+- [ ] Remove uses of nightly-only Rust features
+
 - [ ] Include examples in the repository.
 
-- [ ] Implement a flag to use a DMT algorithm to calculate homology over a field after the edge contraction step.
+- [ ] Possibly separate into two crates: a library with some general tools for working with simplicial complexes and a separate crate for the `sc-simplify` algorithm
+
+- [ ] Implement a flag to use a DMT algorithm to calculate homology over a field after the edge contraction step
 
 - [ ] Possibly eventually implement integral homology.
 
 # Limitations
 
-This package is not intended to be a general toolkit for working with simplicial complexes. It is focused on the single goal of filling what I perceived as a gap in the functionality of available software: *memory efficient* algorithms for efficiently reducing complexes to accelerate calculations of homotopy invariants.
+This package is currently not intended to be a general toolkit for working with simplicial complexes, though that may change sometime in the future. For now, this project is focused on the single goal of filling what I perceived as a gap in the functionality of available software: *memory efficient* algorithms for efficiently reducing complexes to accelerate calculations of homotopy invariants.
 
-Other tools exist for more general manipulations of simplicial complexes. A highly non-exhausitive list of these includes the `simplicial_topology` Rust crate, the `simpcomp` GAP package, and the `sage.topology.simplicial_complex` Sage/Python module.
+Other tools for more general manipulations of simplicial complexes include the `simplicial_topology` Rust crate, the `simpcomp` GAP package, and the `sage.topology.simplicial_complex` Sage/Python module – but this list is highly non-exhaustive.
 
 # License
 
-Copyright 2025 Kaya Arro. Released under the Apache 2.0 license. See the `LICENSE` file or view the license [online](http://www.apache.org/licenses/LICENSE-2.0).
+Copyright 2026 Kaya Arro. Released under the Apache 2.0 license. See the `LICENSE` file or view the license [online](http://www.apache.org/licenses/LICENSE-2.0).

@@ -4,7 +4,6 @@ use std::sync::{
 };
 
 use clap::Parser;
-use ctrlc;
 
 use sc_simplify::io::{SC, read_input, sc_info, write_sc};
 use sc_simplify::{SimplicialComplex, Vertex};

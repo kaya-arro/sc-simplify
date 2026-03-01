@@ -1,6 +1,6 @@
 // Flags for the compiler
 // #![feature(impl_trait_in_assoc_type)]
-#![feature(once_cell_get_mut, thread_local, hash_set_entry, btree_cursors, iter_chain)]
+#![feature(once_cell_get_mut, thread_local, hash_set_entry, btree_cursors)]
 
 // Resources shared between modules
 // from the std library
