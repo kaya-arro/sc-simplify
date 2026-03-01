@@ -7,24 +7,23 @@ description = "Takes a simplicial complex and returns a smaller complex or pair 
 
 
 [dependencies]
-clap = { version = "4.5.34", features = ["cargo", "derive", "wrap_help"] }
-console = "0.15.11"
-ctrlc = "3.4.6"
-indicatif = "0.17.11"
-itertools = "0.14.0"
-num = "0.4.3"
-rayon = "1.10.0"
-rustc-hash = "2.1.1"
+clap = { version = "^4.5.34", features = ["cargo", "derive", "wrap_help"] }
+console = "^0.16.2"
+ctrlc = "^3.4.6"
+indicatif = "^0.18.4"
+itertools = "^0.14.0"
+num = "^0.4.3"
+rayon = "^1.10.0"
+rustc-hash = "^2.1.1"
 
 
 [build-dependencies]
-clap = { version = "4.5.34", features = ["cargo", "derive", "wrap_help"] }
-clap_mangen = "0.2.26"
+clap = { version = "^4.5.34", features = ["cargo", "derive", "wrap_help"] }
+clap_mangen = "^0.2.26"
 
 
 [profile.release]
 opt-level = 3
-# overflow-checks = true
 overflow-checks = false
 lto = "fat"
 codegen-units = 1
